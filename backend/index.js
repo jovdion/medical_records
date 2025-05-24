@@ -22,13 +22,18 @@ const allowedOrigin = 'https://fe-oscar-dot-f-07-450706.uc.r.appspot.com';
 
 app.use(cors({
   origin: allowedOrigin,
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'] 
 }));
 
-app.options("*", cors({
+app.options('*', cors({
   origin: allowedOrigin,
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 
 app.use(cookieParser());
 app.use(express.json());
