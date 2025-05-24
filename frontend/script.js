@@ -287,7 +287,7 @@ async function handleCatatanSubmit(event) {
     const id = catatanIdField.value;
     const name = namaField.value;
     const judul = judulField.value;
-    const isi_catatan = isiField.value; // <-- Pastikan ini 'isi_catatan' karena backend mengharapkannya
+    const isi_catatan = isiField.value; // Menggunakan 'isi_catatan' sesuai harapan backend
 
     const method = id ? 'PUT' : 'POST';
     const url = id ? `${API_URL}/catatan-update/${id}` : `${API_URL}/catatan`;
@@ -354,7 +354,7 @@ function editNote(id, name, judul, konten) {
 }
 
 function setupTokenRefresh() {
-    const intervalMs = 10 * 60 * 1000; // 10 menit
+    const intervalMs = 10 * 60 * 100000; // 10 menit
 
     const id = setInterval(async () => {
         try {
