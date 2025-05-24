@@ -15,7 +15,7 @@ steps:
       [
         "run",
         "deploy",
-        "notes-be-oscar",
+        "notes-be-oscar-final",
         "--image",
         "gcr.io/$PROJECT_ID/notes-be-oscar-final",
         "--timeout",
