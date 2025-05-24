@@ -306,6 +306,7 @@ async function handleCatatanSubmit(event) {
     const url = id ? `${API_URL}/catatan-update/${id}` : `${API_URL}/catatan`;
 
     try {
+        alert(name + judul + isi_catatan);
         const response = await apiRequest(url, {
             method,
             headers: {
@@ -322,8 +323,6 @@ async function handleCatatanSubmit(event) {
             alert(`Gagal ${id ? 'mengubah' : 'menambahkan'} catatan: ` + (data.msg || 'Terjadi kesalahan'));
             return;
         }
-
-        alert(name + judul + isi_catatan);
 
         resetForm();
         fetchNotes();
