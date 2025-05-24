@@ -120,7 +120,7 @@ if (registerForm) {
         }
 
         try {
-            const response = await fetch(`${API_URL}/users`, { // Gunakan fetch langsung karena ini endpoint register
+            const response = await fetch(`${API_URL}users`, { // Gunakan fetch langsung karena ini endpoint register
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
