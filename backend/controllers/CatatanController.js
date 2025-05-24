@@ -2,23 +2,22 @@ import Catatan from "../models/CatatanModel.js";
 import Users from "../models/Usermodel.js";
 
 export const getCatatan = async (req, res) => {
-    // Asumsi userId didapatkan dari sesi/token pengguna yang login
-    const userId = req.userId; // <--- Anda perlu mendapatkan userId dari middleware autentikasi
+    const userId = req.userId;
 
     if (!userId) {
         return res.status(401).json({ msg: "Autentikasi diperlukan. userId tidak ditemukan." });
     }
 
     try {
-        // Mengambil semua catatan yang dimiliki oleh userId yang sedang login
         const response = await Catatan.findAll({
             where: {
-                userId: userId // Filter catatan berdasarkan userId
+                userId: userId
             }
         });
         res.status(200).json(response);
     } catch (error) {
-        console.error("Error getting notes:", error); // Log error lebih detail
+        // Logging error lebih detail untuk debugging
+        console.error("Error getting notes:", error);
         res.status(500).json({ message: error.message });
     }
 };
@@ -26,43 +25,45 @@ export const getCatatan = async (req, res) => {
 // CREATE CATATAN
 export const createCatatan = async (req, res) => {
     const { name, judul, isi_catatan } = req.body;
-    const userId = req.userId; // <--- Anda perlu mendapatkan userId dari middleware autentikasi
+    const userId = req.userId;
 
     if (!userId) {
         return res.status(401).json({ msg: "Autentikasi diperlukan. userId tidak ditemukan." });
     }
 
-    // Tambahkan validasi untuk field yang diperlukan
+    // Validasi input di sisi server
     if (!name || !judul || !isi_catatan) {
         return res.status(400).json({ msg: "Nama, judul, dan isi catatan diperlukan." });
     }
 
-        console.log(name + judul + isi_catatan);
+    // console.log yang Anda tambahkan sebelumnya (bisa diaktifkan/dinonaktifkan sesuai kebutuhan debugging)
+    // console.log(name + judul + isi_catatan); 
 
     try {
         await Catatan.create({
             name: name,
             judul: judul,
             isi_catatan: isi_catatan,
-            userId: userId // Sertakan userId dari pengguna yang login
+            userId: userId
         });
         res.status(201).json({ msg: "Catatan berhasil diupload" });
     } catch (error) {
-        console.error("Error creating note:", error); // Log error lebih detail
+        // Logging error lebih detail untuk debugging
+        console.error("Error creating note:", error);
         res.status(500).json({ message: error.message });
     }
 };
 
 // UPDATE CATATAN
 export const updateCatatan = async (req, res) => {
-    const userId = req.userId; // <--- Anda perlu mendapatkan userId dari middleware autentikasi
-    const { judul, isi_catatan } = req.body; // Ambil data yang akan diupdate
+    const userId = req.userId;
+    const { judul, isi_catatan } = req.body;
 
     if (!userId) {
         return res.status(401).json({ msg: "Autentikasi diperlukan. userId tidak ditemukan." });
     }
 
-    // Tambahkan validasi untuk field yang diperlukan
+    // Validasi input di sisi server
     if (!judul || !isi_catatan) {
         return res.status(400).json({ msg: "Judul dan isi catatan diperlukan untuk pembaruan." });
     }
@@ -71,7 +72,7 @@ export const updateCatatan = async (req, res) => {
         const catatan = await Catatan.findOne({
             where: {
                 catatan_id: req.params.id,
-                userId: userId // Pastikan catatan ini milik user yang sedang login
+                userId: userId
             }
         });
 
@@ -79,22 +80,23 @@ export const updateCatatan = async (req, res) => {
             return res.status(404).json({ msg: "Catatan tidak ditemukan atau Anda tidak memiliki izin untuk mengedit catatan ini." });
         }
         
-        await Catatan.update({ judul, isi_catatan }, { // Hanya update judul dan isi_catatan
+        await Catatan.update({ judul, isi_catatan }, {
             where: {
                 catatan_id: req.params.id,
-                userId: userId // Kriteria tambahan untuk keamanan
+                userId: userId
             }
         });
         res.status(200).json({ msg: "Catatan berhasil diperbarui" });
     } catch (error) {
-        console.error("Error updating note:", error); // Log error lebih detail
+        // Logging error lebih detail untuk debugging
+        console.error("Error updating note:", error);
         res.status(500).json({ message: error.message });
     }
 };
 
 // DELETE CATATAN
 export const deleteCatatan = async (req, res) => {
-    const userId = req.userId; // <--- Anda perlu mendapatkan userId dari middleware autentikasi
+    const userId = req.userId;
 
     if (!userId) {
         return res.status(401).json({ msg: "Autentikasi diperlukan. userId tidak ditemukan." });
@@ -104,7 +106,7 @@ export const deleteCatatan = async (req, res) => {
         const catatan = await Catatan.findOne({
             where: {
                 catatan_id: req.params.id,
-                userId: userId // Pastikan catatan ini milik user yang sedang login
+                userId: userId
             }
         });
 
@@ -115,12 +117,13 @@ export const deleteCatatan = async (req, res) => {
         await Catatan.destroy({
             where: {
                 catatan_id: req.params.id,
-                userId: userId // Kriteria tambahan untuk keamanan
+                userId: userId
             }
         });
         res.status(200).json({ msg: "Catatan berhasil dihapus" });
     } catch (error) {
-        console.error("Error deleting note:", error); // Log error lebih detail
+        // Logging error lebih detail untuk debugging
+        console.error("Error deleting note:", error);
         res.status(500).json({ message: error.message });
     }
 };
