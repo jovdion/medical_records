@@ -1,5 +1,16 @@
 const API_URL = 'https://notes-be-oscar-final-23024569990.us-central1.run.app';
 
+// Helper untuk gabungkan base URL dan path tanpa double slash
+function joinUrl(base, path) {
+    if (base.endsWith('/')) {
+        base = base.slice(0, -1);
+    }
+    if (!path.startsWith('/')) {
+        path = '/' + path;
+    }
+    return base + path;
+}
+
 // Ambil token dari localStorage
 const token = localStorage.getItem('token');
 
@@ -34,21 +45,19 @@ function checkTokenValidity(response) {
 // Fungsi untuk melakukan request API dengan validasi token
 async function apiRequest(url, options = {}) {
     try {
-        // Pastikan header authorization selalu ada
-        if (!options.headers) {
-            options.headers = {};
-        }
-        // Hanya tambahkan token jika ada
+        if (!options.headers) options.headers = {};
+
         if (token) {
             options.headers.Authorization = `Bearer ${token}`;
         }
 
+        // Gabungkan URL endpoint dengan base API_URL jika url relatif
+        const fullUrl = url.startsWith('http') ? url : joinUrl(API_URL, url);
 
-        const response = await fetch(url, options);
+        const response = await fetch(fullUrl, options);
 
-        // Cek validitas token untuk semua request yang memerlukan autentikasi
-        // Periksa jika respons bukan dari endpoint login/register yang tidak memerlukan token
-        if (!url.includes('/login') && !url.includes('/users') && !checkTokenValidity(response)) {
+        // Validasi token hanya untuk endpoint selain login dan users
+        if (!fullUrl.includes('/login') && !fullUrl.includes('/users') && !checkTokenValidity(response)) {
             return null;
         }
 
@@ -71,15 +80,12 @@ if (loginForm) {
         const password = document.getElementById("password").value;
 
         try {
-            const response = await fetch(`${API_URL}/login`, { // Gunakan fetch langsung karena ini endpoint login
+            const response = await fetch(joinUrl(API_URL, 'login'), { // Gunakan fetch langsung karena ini endpoint login
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify({
-                    email,
-                    password
-                })
+                body: JSON.stringify({ email, password })
             });
 
             if (!response.ok) {
@@ -120,7 +126,7 @@ if (registerForm) {
         }
 
         try {
-            const response = await fetch(`https://notes-be-oscar-final-23024569990.us-central1.run.app/users`, { // Gunakan fetch langsung karena ini endpoint register
+            const response = await fetch(joinUrl(API_URL, 'users'), { // Gunakan fetch langsung karena ini endpoint register
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -170,7 +176,6 @@ if (registerForm) {
     }
 }
 
-
 // ====================================================================================
 // LOGIKA UNTUK INDEX.HTML (Aplikasi Catatan)
 // ====================================================================================
@@ -213,7 +218,7 @@ if (logoutBtn) {
     logoutBtn.addEventListener('click', async () => {
         try {
             // Coba logout dari backend untuk menghapus refresh token cookie
-            await fetch(`${API_URL}/logout`, {
+            await fetch(joinUrl(API_URL, 'logout'), {
                 method: 'DELETE',
                 credentials: 'include' // Penting untuk cookies
             });
@@ -237,7 +242,7 @@ if (logoutBtn) {
 
 async function fetchNotes() {
     try {
-        const response = await apiRequest(`${API_URL}/Notes`); // Sesuaikan endpoint API Notes
+        const response = await apiRequest(`${API_URL}/catatan`); // Sesuaikan endpoint API Notes
 
         // Jika respons null, berarti session expired dan sudah dialihkan
         if (!response) return;
@@ -273,176 +278,130 @@ async function fetchNotes() {
             `;
             catatanList.appendChild(row);
         });
-        showStatus("Catatan berhasil dimuat.", "success"); // Tampilkan status sukses
-    } catch (err) {
-        console.error("Error:", err);
-        showStatus("Gagal mengambil catatan. Mohon coba lagi.", "error");
+
+    } catch (error) {
+        console.error('Error fetching notes:', error);
+        alert('Gagal mengambil catatan.');
     }
 }
 
-async function handleCatatanSubmit(e) {
-    e.preventDefault();
+// Fungsi untuk reset form ke mode tambah
+function resetForm() {
+    if (!catatanIdField || !namaField || !judulField || !isiField || !formTitle || !submitBtn || !cancelBtn || !statusDiv) return;
+
+    catatanIdField.value = '';
+    namaField.value = '';
+    judulField.value = '';
+    isiField.value = '';
+    formTitle.textContent = 'Tambah Catatan Baru';
+    submitBtn.textContent = 'Tambah';
+    cancelBtn.style.display = 'none';
+    statusDiv.textContent = '';
+}
+
+// Fungsi untuk submit form tambah/edit catatan
+async function handleCatatanSubmit(event) {
+    event.preventDefault();
 
     const id = catatanIdField.value;
-    const name = namaField.value; // Ambil nama
+    const name = namaField.value;
     const judul = judulField.value;
-    const konten = isiField.value; // Ambil isi dari textarea 'isi'
+    const konten = isiField.value;
+
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `${API_URL}/catatan-update/${id}` : `${API_URL}/catatan`;
 
     try {
-        const method = id ? 'PATCH' : 'POST'; // Gunakan PATCH untuk update, POST untuk create
-        const url = id ? `${API_URL}/Notes/${id}` : `${API_URL}/Notes`; // Sesuaikan endpoint
-
         const response = await apiRequest(url, {
             method,
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                name, // Sertakan nama
-                judul,
-                konten // Gunakan 'konten' untuk data yang dikirim ke BE
-            })
+            body: JSON.stringify({ name, judul, konten })
         });
 
-        // Jika respons null, berarti session expired dan sudah dialihkan
-        if (!response) return;
+        if (!response) return; // session expired
 
         if (!response.ok) {
-            const errorData = await response.json();
-            showStatus('Gagal menyimpan catatan: ' + (errorData.msg || 'Terjadi kesalahan'), "error");
+            const data = await response.json();
+            alert(`Gagal ${id ? 'mengubah' : 'menambahkan'} catatan: ` + (data.msg || 'Terjadi kesalahan'));
             return;
         }
 
-        showStatus("Catatan berhasil disimpan!", "success");
         resetForm();
         fetchNotes();
-    } catch (err) {
-        console.error("Error:", err);
-        showStatus('Gagal menyimpan catatan. Mohon coba lagi.', "error");
+
+    } catch (error) {
+        console.error('Error submitting note:', error);
+        alert('Terjadi kesalahan saat menyimpan catatan.');
     }
 }
 
+// Fungsi untuk hapus catatan
 async function deleteNote(id) {
-    if (!confirm('Apakah Anda yakin ingin menghapus catatan ini?')) {
-        return;
-    }
+    if (!confirm('Anda yakin ingin menghapus catatan ini?')) return;
 
     try {
-        const response = await apiRequest(`${API_URL}/Notes/${id}`, { // Sesuaikan endpoint
-            method: 'DELETE'
-        });
+        const response = await apiRequest(`${API_URL}/catatan-hapus/${id}`, { method: 'DELETE' });
 
-        // Jika respons null, berarti session expired dan sudah dialihkan
-        if (!response) return;
+        if (!response) return; // session expired
 
         if (!response.ok) {
-            const errorData = await response.json();
-            showStatus('Gagal menghapus catatan: ' + (errorData.msg || 'Terjadi kesalahan'), "error");
+            const data = await response.json();
+            alert('Gagal menghapus catatan: ' + (data.msg || 'Terjadi kesalahan'));
             return;
         }
 
-        showStatus("Catatan berhasil dihapus!", "success");
         fetchNotes();
-    } catch (err) {
-        console.error("Error:", err);
-        showStatus('Gagal menghapus catatan. Mohon coba lagi.', "error");
+    } catch (error) {
+        console.error('Error deleting note:', error);
+        alert('Terjadi kesalahan saat menghapus catatan.');
     }
 }
 
-// Fungsi untuk mengisi form saat edit
+// Fungsi untuk isi form dengan data catatan untuk diedit
 function editNote(id, name, judul, konten) {
+    if (!catatanIdField || !namaField || !judulField || !isiField || !formTitle || !submitBtn || !cancelBtn || !statusDiv) return;
+
     catatanIdField.value = id;
-    namaField.value = name; // Isi field nama
+    namaField.value = name;
     judulField.value = judul;
-    isiField.value = konten; // Isi field isi
-
+    isiField.value = konten;
     formTitle.textContent = 'Edit Catatan';
-    submitBtn.textContent = 'Perbarui';
-    cancelBtn.style.display = 'inline-block';
-
-    // Scroll ke form agar user bisa edit
-    catatanForm.scrollIntoView({
-        behavior: 'smooth'
-    });
-}
-
-function resetForm() {
-    formTitle.textContent = 'Tambah Catatan Baru';
-    catatanForm.reset();
-    catatanIdField.value = '';
     submitBtn.textContent = 'Simpan';
-    cancelBtn.style.display = 'none';
-    statusDiv.style.display = 'none'; // Sembunyikan status saat reset form
+    cancelBtn.style.display = 'inline';
+    statusDiv.textContent = '';
 }
 
-function showStatus(message, type) {
-    statusDiv.textContent = message;
-    statusDiv.className = 'status'; // Reset class
-    if (type === 'success') {
-        statusDiv.classList.add('success');
-    } else if (type === 'error') {
-        statusDiv.classList.add('error');
-    }
-    statusDiv.style.display = 'block';
-    // Sembunyikan setelah 5 detik
-    setTimeout(() => {
-        statusDiv.style.display = 'none';
-    }, 5000);
-}
-
-
-// Fungsi untuk refresh token secara periodik
+// Fungsi refresh token otomatis, misalnya setiap 10 menit
 function setupTokenRefresh() {
-    // Refresh token setiap 10 detik, karena token expire setiap 15 detik
-    const REFRESH_INTERVAL = 10 * 1000; // 10 detik
+    const intervalMs = 10 * 60 * 1000; // 10 menit
 
-    const refreshIntervalId = setInterval(async () => {
+    const id = setInterval(async () => {
         try {
-            // Gunakan endpoint refresh token yang sudah ada
-            const response = await fetch(`${API_URL}/token`, {
+            // Lakukan request untuk refresh token
+            const response = await fetch(joinUrl(API_URL, 'refresh'), {
                 method: 'GET',
-                credentials: 'include' // Penting untuk mengirim cookies
+                credentials: 'include' // penting agar cookie refresh token dikirim
             });
 
-            if (response.ok) {
-                const data = await response.json();
-                if (data.accessToken) {
-                    localStorage.setItem('token', data.accessToken);
-                    console.log('Token berhasil di-refresh');
-                }
-            } else if (response.status === 401 || response.status === 403) {
-                clearInterval(refreshIntervalId);
+            if (!response.ok) {
+                // Jika refresh gagal, anggap sesi habis
                 handleSessionExpired();
+                clearInterval(id);
+                return;
             }
-        } catch (error) {
-            console.error('Gagal refresh token:', error);
+
+            const data = await response.json();
+            if (data.accessToken) {
+                localStorage.setItem('token', data.accessToken);
+            }
+        } catch (err) {
+            console.error('Gagal refresh token:', err);
+            handleSessionExpired();
+            clearInterval(id);
         }
-    }, REFRESH_INTERVAL);
+    }, intervalMs);
 
-    return refreshIntervalId;
-}
-
-// Add button ripple effect for login.html and register.html
-// Pastikan ini berjalan di kedua halaman tersebut
-const buttons = document.getElementsByTagName("button");
-for (let button of buttons) {
-    button.addEventListener("click", function (e) {
-        // Cek apakah tombol ini adalah tombol submit di form catatan atau tombol edit/delete
-        // Agar efek ripple tidak mengganggu di index.html
-        if (this.id === 'submit-btn' || this.classList.contains('edit') || this.classList.contains('delete') || this.classList.contains('logout-button')) {
-            return;
-        }
-
-        let x = e.clientX - e.target.offsetLeft;
-        let y = e.clientY - e.target.offsetTop;
-
-        let ripple = document.createElement("span");
-        ripple.style.left = `${x}px`;
-        ripple.style.top = `${y}px`;
-        this.appendChild(ripple);
-
-        setTimeout(function () {
-            ripple.remove();
-        }, 600);
-    });
+    return id;
 }
