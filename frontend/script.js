@@ -289,6 +289,19 @@ async function handleCatatanSubmit(event) {
     const judul = judulField.value;
     const isi_catatan = isiField.value; // Menggunakan 'isi_catatan' sesuai harapan backend
 
+    // Validasi di sisi klien sebelum mengirim permintaan
+    if (!name || !judul || !isi_catatan) {
+        alert('Nama, judul, dan isi catatan tidak boleh kosong.');
+        return; // Hentikan eksekusi jika ada field yang kosong
+    }
+
+    // --- DEBUGGING: Log nilai sebelum dikirim ---
+    console.log('Nilai yang akan dikirim:');
+    console.log('Nama:', name);
+    console.log('Judul:', judul);
+    console.log('Isi Catatan:', isi_catatan);
+    // --- END DEBUGGING ---
+
     const method = id ? 'PUT' : 'POST';
     const url = id ? `${API_URL}/catatan-update/${id}` : `${API_URL}/catatan`;
 
@@ -354,7 +367,7 @@ function editNote(id, name, judul, konten) {
 }
 
 function setupTokenRefresh() {
-    const intervalMs = 10 * 60 * 100000; // 10 menit
+    const intervalMs = 10 * 60 * 1000; // 10 menit
 
     const id = setInterval(async () => {
         try {
