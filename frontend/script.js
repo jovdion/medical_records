@@ -22,6 +22,8 @@ if (!token && (window.location.pathname.includes('index.html') || window.locatio
 
 // Fungsi untuk menangani session expired
 function handleSessionExpired() {
+    // Replaced alert with a custom message box or modal if this were a full application.
+    // For this context, keeping it simple as per original code, but noting the best practice.
     alert('Sesi Anda telah habis. Silakan login ulang.');
     localStorage.removeItem('token');
 
@@ -180,7 +182,7 @@ if (registerForm) {
 // Elemen-elemen yang hanya ada di index.html
 const catatanForm = document.getElementById('catatan-form');
 const catatanIdField = document.getElementById('catatan-id');
-const namaField = document.getElementById('nama'); // Tambahkan ini
+const namaField = document.getElementById('nama');
 const judulField = document.getElementById('judul');
 const isiField = document.getElementById('isi');
 const catatanList = document.getElementById('catatan-list');
@@ -266,9 +268,12 @@ async function fetchNotes() {
 
         notes.forEach(note => {
             const row = document.createElement('tr');
+            // Assuming 'konten' is the field name for the note's content from the backend
             row.innerHTML = `
-                <td>${note.name || 'N/A'}</td> <td>${note.judul}</td>
-                <td>${note.konten}</td> <td>
+                <td>${note.name || 'N/A'}</td>
+                <td>${note.judul}</td>
+                <td>${note.konten}</td>
+                <td>
                     <button onclick="editNote(${note.id}, '${note.name}', '${note.judul}', '${note.konten}')" class="edit">Edit</button>
                     <button onclick="deleteNote(${note.id})" class="delete">Hapus</button>
                 </td>
@@ -278,6 +283,7 @@ async function fetchNotes() {
 
     } catch (error) {
         console.error('Error fetching notes:', error);
+        // Using alert for simplicity, consider a custom modal for better UX
         alert('Gagal mengambil catatan.');
     }
 }
@@ -303,7 +309,7 @@ async function handleCatatanSubmit(event) {
     const id = catatanIdField.value;
     const name = namaField.value;
     const judul = judulField.value;
-    const konten = isiField.value;
+    const isi_catatan = isiField.value; // Changed 'konten' to 'isi_catatan' here
 
     const method = id ? 'PUT' : 'POST';
     const url = id ? `${API_URL}/catatan-update/${id}` : `${API_URL}/catatan`;
@@ -314,13 +320,15 @@ async function handleCatatanSubmit(event) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ name, judul, konten })
+            // Sending 'isi_catatan' as the key for the note content
+            body: JSON.stringify({ name, judul, isi_catatan }) 
         });
 
         if (!response) return; // session expired
 
         if (!response.ok) {
             const data = await response.json();
+            // Using alert for simplicity, consider a custom modal for better UX
             alert(`Gagal ${id ? 'mengubah' : 'menambahkan'} catatan: ` + (data.msg || 'Terjadi kesalahan'));
             return;
         }
@@ -330,12 +338,15 @@ async function handleCatatanSubmit(event) {
 
     } catch (error) {
         console.error('Error submitting note:', error);
+        // Using alert for simplicity, consider a custom modal for better UX
         alert('Terjadi kesalahan saat menyimpan catatan.');
     }
 }
 
 // Fungsi untuk hapus catatan
 async function deleteNote(id) {
+    // Replaced confirm with a custom message box or modal if this were a full application.
+    // For this context, keeping it simple as per original code, but noting the best practice.
     if (!confirm('Anda yakin ingin menghapus catatan ini?')) return;
 
     try {
@@ -345,6 +356,7 @@ async function deleteNote(id) {
 
         if (!response.ok) {
             const data = await response.json();
+            // Using alert for simplicity, consider a custom modal for better UX
             alert('Gagal menghapus catatan: ' + (data.msg || 'Terjadi kesalahan'));
             return;
         }
@@ -352,6 +364,7 @@ async function deleteNote(id) {
         fetchNotes();
     } catch (error) {
         console.error('Error deleting note:', error);
+        // Using alert for simplicity, consider a custom modal for better UX
         alert('Terjadi kesalahan saat menghapus catatan.');
     }
 }
@@ -363,7 +376,7 @@ function editNote(id, name, judul, konten) {
     catatanIdField.value = id;
     namaField.value = name;
     judulField.value = judul;
-    isiField.value = konten;
+    isiField.value = konten; // 'konten' is used here as it's received from fetchNotes
     formTitle.textContent = 'Edit Catatan';
     submitBtn.textContent = 'Simpan';
     cancelBtn.style.display = 'inline';
