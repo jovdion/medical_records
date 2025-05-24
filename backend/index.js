@@ -18,7 +18,7 @@ const app = express();
 // CORS untuk frontend yang terpisah domain
 app.use(cors({
   credentials: true,
-  origin: 'https://fe-oscar-dot-f-07-450706.uc.r.appspot.com/login.html'
+  origin: 'https://fe-oscar-dot-f-07-450706.uc.r.appspot.com'
 }));
 
 app.use(cookieParser());
