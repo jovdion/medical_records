@@ -18,6 +18,7 @@ export const getCatatan = async (req, res) => {
         });
         res.status(200).json(response);
     } catch (error) {
+        console.error("Error getting notes:", error); // Log error lebih detail
         res.status(500).json({ message: error.message });
     }
 };
@@ -31,7 +32,10 @@ export const createCatatan = async (req, res) => {
         return res.status(401).json({ msg: "Autentikasi diperlukan. userId tidak ditemukan." });
     }
 
-    
+    // Tambahkan validasi untuk field yang diperlukan
+    if (!name || !judul || !isi_catatan) {
+        return res.status(400).json({ msg: "Nama, judul, dan isi catatan diperlukan." });
+    }
 
     try {
         await Catatan.create({
@@ -42,6 +46,7 @@ export const createCatatan = async (req, res) => {
         });
         res.status(201).json({ msg: "Catatan berhasil diupload" });
     } catch (error) {
+        console.error("Error creating note:", error); // Log error lebih detail
         res.status(500).json({ message: error.message });
     }
 };
@@ -53,6 +58,11 @@ export const updateCatatan = async (req, res) => {
 
     if (!userId) {
         return res.status(401).json({ msg: "Autentikasi diperlukan. userId tidak ditemukan." });
+    }
+
+    // Tambahkan validasi untuk field yang diperlukan
+    if (!judul || !isi_catatan) {
+        return res.status(400).json({ msg: "Judul dan isi catatan diperlukan untuk pembaruan." });
     }
 
     try {
@@ -75,6 +85,7 @@ export const updateCatatan = async (req, res) => {
         });
         res.status(200).json({ msg: "Catatan berhasil diperbarui" });
     } catch (error) {
+        console.error("Error updating note:", error); // Log error lebih detail
         res.status(500).json({ message: error.message });
     }
 };
@@ -107,6 +118,7 @@ export const deleteCatatan = async (req, res) => {
         });
         res.status(200).json({ msg: "Catatan berhasil dihapus" });
     } catch (error) {
+        console.error("Error deleting note:", error); // Log error lebih detail
         res.status(500).json({ message: error.message });
     }
 };
