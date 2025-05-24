@@ -1,6 +1,6 @@
 import express from "express";
 import {getCatatan, createCatatan, updateCatatan, deleteCatatan} from "../controllers/CatatanController.js";
-import { verifyToken } from "../middleware/VerivyToken.js";
+import { verifyToken } from "../middleware/verifytoken.js";
 
 const router = express.Router();
 

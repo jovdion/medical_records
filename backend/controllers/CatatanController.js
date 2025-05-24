@@ -1,5 +1,5 @@
 import Catatan from "../models/CatatanModel.js";
-import User from "./models/Usermodel.js";
+import Users from "../models/Usermodel.js";
 
 export const getCatatan = async (req, res) => {
     // Asumsi userId didapatkan dari sesi/token pengguna yang login

@@ -1,14 +1,14 @@
 // index.js (backend utama)
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
+import dotenv from 'dotenv';
 import cookieParser from "cookie-parser";
 import path from "path";
 import { fileURLToPath } from "url";
 
-import NoteRoutes from "./routes/NoteRoutes.js";
-import UserRoutes from "./routes/UserRoutes.js";
-import "./models/UserModel.js"; // pastikan model di-import agar sequelize sync bisa jalan
+import CatatanRoute from "./Route/CatatanRoute.js";
+import UserRoute from "./Route/Userroute.js";
+import "./models/Usermodel.js"; // pastikan model di-import agar sequelize sync bisa jalan
 import "./models/CatatanModel.js"; // jika kamu pakai juga
 
 dotenv.config();
@@ -25,8 +25,8 @@ app.use(cookieParser());
 app.use(express.json());
 
 // Routing
-app.use(NoteRoutes);
-app.use(UserRoutes);
+app.use(CatatanRoute);
+app.use(UserRoute);
 
 // (opsional) Melayani file statis jika frontend bareng
 const __filename = fileURLToPath(import.meta.url);
