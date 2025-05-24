@@ -302,11 +302,12 @@ async function handleCatatanSubmit(event) {
     console.log('Isi Catatan:', isi_catatan);
     // --- END DEBUGGING ---
 
+    debugger;
+
     const method = id ? 'PUT' : 'POST';
     const url = id ? `${API_URL}/catatan-update/${id}` : `${API_URL}/catatan`;
 
     try {
-        alert(name + judul + isi_catatan);
         const response = await apiRequest(url, {
             method,
             headers: {
