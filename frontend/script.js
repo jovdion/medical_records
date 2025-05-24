@@ -45,19 +45,16 @@ function checkTokenValidity(response) {
 // Fungsi untuk melakukan request API dengan validasi token
 async function apiRequest(url, options = {}) {
     try {
-        if (!options.headers) options.headers = {};
-
-        if (token) {
-            options.headers.Authorization = `Bearer ${token}`;
+        // Pastikan header authorization selalu ada
+        if (!options.headers) {
+            options.headers = {};
         }
+        options.headers.Authorization = `Bearer ${token}`;
 
-        // Gabungkan URL endpoint dengan base API_URL jika url relatif
-        const fullUrl = url.startsWith('http') ? url : joinUrl(API_URL, url);
+        const response = await fetch(url, options);
 
-        const response = await fetch(fullUrl, options);
-
-        // Validasi token hanya untuk endpoint selain login dan users
-        if (!fullUrl.includes('/login') && !fullUrl.includes('/users') && !checkTokenValidity(response)) {
+        // Cek validitas token untuk semua request
+        if (!checkTokenValidity(response)) {
             return null;
         }
 
