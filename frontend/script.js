@@ -1,4 +1,4 @@
-const API_URL = 'https://notes-be101-981623652580.us-central1.run.app';
+const API_URL = 'https://notes-be-oscar-final-23024569990.us-central1.run.app/';
 // const API_URL = 'http://localhost:5000'; // Gunakan ini jika Anda menjalankan backend secara lokal
 
 // Ambil token dari localStorage
