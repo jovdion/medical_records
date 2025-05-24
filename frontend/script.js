@@ -253,9 +253,9 @@ async function fetchNotes() {
             row.innerHTML = `
                 <td>${note.name || 'N/A'}</td>
                 <td>${note.judul}</td>
-                <td>${note.konten}</td>
+                <td>${note.isi_catatan}</td>
                 <td>
-                    <button onclick="editNote(${note.id}, '${note.name}', '${note.judul}', '${note.konten}')" class="edit">Edit</button>
+                    <button onclick="editNote(${note.id}, '${note.name}', '${note.judul}', '${note.isi_catatan}')" class="edit">Edit</button>
                     <button onclick="deleteNote(${note.id})" class="delete">Hapus</button>
                 </td>
             `;
@@ -355,13 +355,13 @@ async function deleteNote(id) {
     }
 }
 
-function editNote(id, name, judul, konten) {
+function editNote(id, name, judul, isi_catatan) {
     if (!catatanIdField || !namaField || !judulField || !isiField || !formTitle || !submitBtn || !cancelBtn || !statusDiv) return;
 
     catatanIdField.value = id;
     namaField.value = name;
     judulField.value = judul;
-    isiField.value = konten; // 'konten' digunakan di sini karena diterima dari fetchNotes
+    isiField.value = isi_catatan; // 'konten' digunakan di sini karena diterima dari fetchNotes
     formTitle.textContent = 'Edit Catatan';
     submitBtn.textContent = 'Simpan';
     cancelBtn.style.display = 'inline';
