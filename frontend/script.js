@@ -323,6 +323,8 @@ async function handleCatatanSubmit(event) {
             return;
         }
 
+        alert(name + judul + isi_catatan);
+
         resetForm();
         fetchNotes();
 
