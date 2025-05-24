@@ -31,6 +31,8 @@ export const createCatatan = async (req, res) => {
         return res.status(401).json({ msg: "Autentikasi diperlukan. userId tidak ditemukan." });
     }
 
+    
+
     try {
         await Catatan.create({
             name: name,

@@ -22,8 +22,6 @@ if (!token && (window.location.pathname.includes('index.html') || window.locatio
 
 // Fungsi untuk menangani session expired
 function handleSessionExpired() {
-    // Replaced alert with a custom message box or modal if this were a full application.
-    // For this context, keeping it simple as per original code, but noting the best practice.
     alert('Sesi Anda telah habis. Silakan login ulang.');
     localStorage.removeItem('token');
 
@@ -79,7 +77,7 @@ if (loginForm) {
         const password = document.getElementById("password").value;
 
         try {
-            const response = await fetch(joinUrl(API_URL, 'login'), { // Gunakan fetch langsung karena ini endpoint login
+            const response = await fetch(joinUrl(API_URL, 'login'), {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -94,9 +92,8 @@ if (loginForm) {
             }
 
             const data = await response.json();
-            localStorage.setItem("token", data.accessToken); // simpan token
+            localStorage.setItem("token", data.accessToken);
 
-            // redirect ke halaman utama
             window.location.href = "index.html";
         } catch (err) {
             console.error(err);
@@ -118,14 +115,13 @@ if (registerForm) {
         const password = document.getElementById('password').value;
         const confPassword = document.getElementById('confPassword').value;
 
-        // Validasi password dan konfirmasi password
         if (password !== confPassword) {
             alert('Password dan konfirmasi password tidak cocok!');
             return;
         }
 
         try {
-            const response = await fetch(joinUrl(API_URL, 'users'), { // Gunakan fetch langsung karena ini endpoint register
+            const response = await fetch(joinUrl(API_URL, 'users'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -146,11 +142,10 @@ if (registerForm) {
         }
     });
 
-    // Simple password strength indicator untuk register.html
     const passwordInput = document.getElementById('password');
     const strengthMeter = document.querySelector('.strength-meter');
 
-    if (passwordInput && strengthMeter) { // Pastikan elemen ada sebelum menambahkan event listener
+    if (passwordInput && strengthMeter) {
         passwordInput.addEventListener('input', function () {
             const password = this.value;
             let strength = 0;
@@ -163,13 +158,13 @@ if (registerForm) {
             strengthMeter.style.width = strength + '%';
 
             if (strength <= 25) {
-                strengthMeter.style.backgroundColor = '#ff4d4d'; // Red
+                strengthMeter.style.backgroundColor = '#ff4d4d'; // Merah
             } else if (strength <= 50) {
-                strengthMeter.style.backgroundColor = '#ffa64d'; // Orange
+                strengthMeter.style.backgroundColor = '#ffa64d'; // Oranye
             } else if (strength <= 75) {
-                strengthMeter.style.backgroundColor = '#ffff4d'; // Yellow
+                strengthMeter.style.backgroundColor = '#ffff4d'; // Kuning
             } else {
-                strengthMeter.style.backgroundColor = '#4dff4d'; // Green
+                strengthMeter.style.backgroundColor = '#4dff4d'; // Hijau
             }
         });
     }
@@ -179,7 +174,6 @@ if (registerForm) {
 // LOGIKA UNTUK INDEX.HTML (Aplikasi Catatan)
 // ====================================================================================
 
-// Elemen-elemen yang hanya ada di index.html
 const catatanForm = document.getElementById('catatan-form');
 const catatanIdField = document.getElementById('catatan-id');
 const namaField = document.getElementById('nama');
@@ -190,21 +184,17 @@ const formTitle = document.getElementById('form-title');
 const submitBtn = document.getElementById('submit-btn');
 const cancelBtn = document.getElementById('cancel-btn');
 const statusDiv = document.getElementById('status');
-const logoutBtn = document.getElementById('logoutBtn'); // ID tombol logout di index.html
+const logoutBtn = document.getElementById('logoutBtn');
 
-// Hanya jalankan jika elemen-elemen untuk index.html ada (yaitu, kita berada di index.html)
 if (catatanForm && catatanIdField && namaField && judulField && isiField && catatanList && formTitle && submitBtn && cancelBtn && statusDiv) {
     cancelBtn.addEventListener('click', resetForm);
-    catatanForm.addEventListener('submit', handleCatatanSubmit); // Ganti dengan handler tunggal
+    catatanForm.addEventListener('submit', handleCatatanSubmit);
 
     document.addEventListener('DOMContentLoaded', () => {
-        fetchNotes(); // Mengambil catatan saat DOM dimuat
-        // Aktifkan refresh token otomatis dan simpan ID-nya di variabel global
-        // agar bisa diakses dari handleSessionExpired
+        fetchNotes();
         window.refreshIntervalId = setupTokenRefresh();
     });
 
-    // Tambahkan event listener untuk membersihkan interval saat user meninggalkan halaman
     window.addEventListener('beforeunload', () => {
         if (window.refreshIntervalId) {
             clearInterval(window.refreshIntervalId);
@@ -212,38 +202,29 @@ if (catatanForm && catatanIdField && namaField && judulField && isiField && cata
     });
 }
 
-// Logika Logout (untuk semua halaman, tapi tombol ada di index.html)
 if (logoutBtn) {
     logoutBtn.addEventListener('click', async () => {
         try {
-            // Coba logout dari backend untuk menghapus refresh token cookie
             await fetch(joinUrl(API_URL, 'logout'), {
                 method: 'DELETE',
-                credentials: 'include' // Penting untuk cookies
+                credentials: 'include'
             });
         } catch (error) {
             console.error('Error saat logout:', error);
         } finally {
-            // Hapus token dari localStorage
             localStorage.removeItem('token');
-
-            // Hentikan refresh interval jika ada
             if (window.refreshIntervalId) {
                 clearInterval(window.refreshIntervalId);
             }
-
-            // Redirect ke login
             window.location.href = 'login.html';
         }
     });
 }
 
-
 async function fetchNotes() {
     try {
-        const response = await apiRequest(`${API_URL}/catatan`); // Sesuaikan endpoint API Notes
+        const response = await apiRequest(`${API_URL}/catatan`);
 
-        // Jika respons null, berarti session expired dan sudah dialihkan
         if (!response) return;
 
         if (!response.ok) {
@@ -252,7 +233,7 @@ async function fetchNotes() {
 
         const notes = await response.json();
 
-        if (!catatanList) { // Pastikan catatanList ada
+        if (!catatanList) {
             console.error("Element dengan id 'catatan-list' tidak ditemukan");
             return;
         }
@@ -268,7 +249,7 @@ async function fetchNotes() {
 
         notes.forEach(note => {
             const row = document.createElement('tr');
-            // Assuming 'konten' is the field name for the note's content from the backend
+            // Backend mengirim 'konten' saat mengambil data
             row.innerHTML = `
                 <td>${note.name || 'N/A'}</td>
                 <td>${note.judul}</td>
@@ -283,12 +264,10 @@ async function fetchNotes() {
 
     } catch (error) {
         console.error('Error fetching notes:', error);
-        // Using alert for simplicity, consider a custom modal for better UX
         alert('Gagal mengambil catatan.');
     }
 }
 
-// Fungsi untuk reset form ke mode tambah
 function resetForm() {
     if (!catatanIdField || !namaField || !judulField || !isiField || !formTitle || !submitBtn || !cancelBtn || !statusDiv) return;
 
@@ -302,14 +281,13 @@ function resetForm() {
     statusDiv.textContent = '';
 }
 
-// Fungsi untuk submit form tambah/edit catatan
 async function handleCatatanSubmit(event) {
     event.preventDefault();
 
     const id = catatanIdField.value;
     const name = namaField.value;
     const judul = judulField.value;
-    const isi_catatan = isiField.value; // Changed 'konten' to 'isi_catatan' here
+    const isi_catatan = isiField.value; // <-- Pastikan ini 'isi_catatan' karena backend mengharapkannya
 
     const method = id ? 'PUT' : 'POST';
     const url = id ? `${API_URL}/catatan-update/${id}` : `${API_URL}/catatan`;
@@ -320,15 +298,14 @@ async function handleCatatanSubmit(event) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            // Sending 'isi_catatan' as the key for the note content
-            body: JSON.stringify({ name, judul, isi_catatan }) 
+            // Mengirim 'isi_catatan' sebagai kunci untuk isi catatan, sesuai harapan backend
+            body: JSON.stringify({ name, judul, isi_catatan })
         });
 
-        if (!response) return; // session expired
+        if (!response) return;
 
         if (!response.ok) {
             const data = await response.json();
-            // Using alert for simplicity, consider a custom modal for better UX
             alert(`Gagal ${id ? 'mengubah' : 'menambahkan'} catatan: ` + (data.msg || 'Terjadi kesalahan'));
             return;
         }
@@ -338,25 +315,20 @@ async function handleCatatanSubmit(event) {
 
     } catch (error) {
         console.error('Error submitting note:', error);
-        // Using alert for simplicity, consider a custom modal for better UX
         alert('Terjadi kesalahan saat menyimpan catatan.');
     }
 }
 
-// Fungsi untuk hapus catatan
 async function deleteNote(id) {
-    // Replaced confirm with a custom message box or modal if this were a full application.
-    // For this context, keeping it simple as per original code, but noting the best practice.
     if (!confirm('Anda yakin ingin menghapus catatan ini?')) return;
 
     try {
         const response = await apiRequest(`${API_URL}/catatan-hapus/${id}`, { method: 'DELETE' });
 
-        if (!response) return; // session expired
+        if (!response) return;
 
         if (!response.ok) {
             const data = await response.json();
-            // Using alert for simplicity, consider a custom modal for better UX
             alert('Gagal menghapus catatan: ' + (data.msg || 'Terjadi kesalahan'));
             return;
         }
@@ -364,39 +336,34 @@ async function deleteNote(id) {
         fetchNotes();
     } catch (error) {
         console.error('Error deleting note:', error);
-        // Using alert for simplicity, consider a custom modal for better UX
         alert('Terjadi kesalahan saat menghapus catatan.');
     }
 }
 
-// Fungsi untuk isi form dengan data catatan untuk diedit
 function editNote(id, name, judul, konten) {
     if (!catatanIdField || !namaField || !judulField || !isiField || !formTitle || !submitBtn || !cancelBtn || !statusDiv) return;
 
     catatanIdField.value = id;
     namaField.value = name;
     judulField.value = judul;
-    isiField.value = konten; // 'konten' is used here as it's received from fetchNotes
+    isiField.value = konten; // 'konten' digunakan di sini karena diterima dari fetchNotes
     formTitle.textContent = 'Edit Catatan';
     submitBtn.textContent = 'Simpan';
     cancelBtn.style.display = 'inline';
     statusDiv.textContent = '';
 }
 
-// Fungsi refresh token otomatis, misalnya setiap 10 menit
 function setupTokenRefresh() {
     const intervalMs = 10 * 60 * 1000; // 10 menit
 
     const id = setInterval(async () => {
         try {
-            // Lakukan request untuk refresh token
             const response = await fetch(joinUrl(API_URL, 'refresh'), {
                 method: 'GET',
-                credentials: 'include' // penting agar cookie refresh token dikirim
+                credentials: 'include'
             });
 
             if (!response.ok) {
-                // Jika refresh gagal, anggap sesi habis
                 handleSessionExpired();
                 clearInterval(id);
                 return;
