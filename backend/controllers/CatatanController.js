@@ -37,6 +37,8 @@ export const createCatatan = async (req, res) => {
         return res.status(400).json({ msg: "Nama, judul, dan isi catatan diperlukan." });
     }
 
+        console.log(name + judul + isi_catatan);
+
     try {
         await Catatan.create({
             name: name,
