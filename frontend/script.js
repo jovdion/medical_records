@@ -172,8 +172,6 @@ const logoutBtn = document.getElementById('logoutBtn');
 if (catatanForm && catatanIdField && namaField && judulField && isiField && catatanList && formTitle && submitBtn && cancelBtn && statusDiv) {
     cancelBtn.addEventListener('click', resetForm);
     catatanForm.addEventListener('submit', handleCatatanSubmit);
-
-    document.addEventListener('DOMContentLoaded', initializeAuthAndFetchNotes);
     
     window.addEventListener('beforeunload', () => {
         if (window.refreshIntervalId) {
