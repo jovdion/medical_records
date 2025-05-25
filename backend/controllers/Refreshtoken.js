@@ -22,7 +22,7 @@ export const refreshToken = async (req, res) => {
                 username,
                 email
             }, process.env.ACCESS_TOKEN_SECRET, {
-                expiresIn: '1h'
+                expiresIn: '15s'
             });
 
             res.json({
