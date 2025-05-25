@@ -39,73 +39,22 @@ function processQueue(error, newToken = null) {
     failedQueue = [];
 }
 
-// Fungsi untuk melakukan request API dengan validasi token dan retry
-async function apiRequest(url, options = {}, isRetry = false) {
+async function apiRequest(url, options = {}) {
     try {
+        // Pastikan header authorization selalu ada
         if (!options.headers) {
             options.headers = {};
         }
-        if (token) { // Pastikan token ada sebelum menambahkannya
-            options.headers.Authorization = `Bearer ${token}`;
-        }
+        options.headers.Authorization = `Bearer ${token}`;
 
         const response = await fetch(url, options);
 
-        // Jika 401/403 dan ini bukan permintaan retry, coba refresh token
-        if ((response.status === 401 || response.status === 403) && !isRetry) {
-            if (isRefreshing) {
-                // Jika sudah ada proses refresh, masukkan permintaan ini ke antrian
-                return new Promise((resolve, reject) => {
-                    failedQueue.push({ resolve, reject });
-                }).then(() => {
-                    // Setelah refresh selesai, coba lagi permintaan asli dengan token baru
-                    return apiRequest(url, options, true);
-                }).catch(err => {
-                    return Promise.reject(err);
-                });
-            }
-
-            isRefreshing = true; // Set flag sedang refresh
-
-            // Coba refresh token
-            const refreshResponse = await fetch(joinUrl(API_URL, 'refresh'), {
-                method: 'GET',
-                credentials: 'include'
-            });
-
-            if (!refreshResponse.ok) {
-                // Refresh token gagal, sesi benar-benar habis
-                isRefreshing = false;
-                processQueue(new Error("Refresh token failed")); // Tolak semua antrian
-                handleSessionExpired();
-                return null; // Menghentikan alur saat ini
-            }
-
-            const data = await refreshResponse.json();
-            if (data.accessToken) {
-                localStorage.setItem('token', data.accessToken);
-                token = data.accessToken; // Perbarui variabel token global
-                isRefreshing = false;
-                processQueue(null, data.accessToken); // Lanjutkan semua permintaan antrian
-
-                // Coba lagi permintaan asli dengan token yang baru
-                return apiRequest(url, options, true);
-            } else {
-                // Jika tidak ada accessToken baru, anggap refresh gagal
-                isRefreshing = false;
-                processQueue(new Error("No new access token")); // Tolak semua antrian
-                handleSessionExpired();
-                return null;
-            }
+        // Cek validitas token untuk semua request
+        if (!checkTokenValidity(response)) {
+            return null;
         }
 
-        // Jika respons 200 OK atau bukan 401/403 yang ditangani
-        if (!response.ok) {
-            // Ini untuk status non-OK lainnya selain 401/403 yang ditangani di atas
-            return Promise.reject(response);
-        }
-
-        return response; // Kembalikan respons jika berhasil
+        return response;
     } catch (err) {
         console.error("API Request Error:", err);
         throw err;
@@ -267,43 +216,43 @@ if (logoutBtn) {
     });
 }
 
-async function initializeAuthAndFetchNotes() {
-    // Cek apakah token sudah ada, jika tidak, arahkan ke login
-    if (!token) {
-        handleSessionExpired(); // Ini akan redirect ke login
-        return;
-    }
+// async function initializeAuthAndFetchNotes() {
+//     // Cek apakah token sudah ada, jika tidak, arahkan ke login
+//     if (!token) {
+//         handleSessionExpired(); // Ini akan redirect ke login
+//         return;
+//     }
 
-    // Coba refresh token saat halaman dimuat
-    try {
-        const response = await fetch(joinUrl(API_URL, 'refresh'), {
-            method: 'GET',
-            credentials: 'include'
-        });
+//     // Coba refresh token saat halaman dimuat
+//     try {
+//         const response = await fetch(joinUrl(API_URL, 'refresh'), {
+//             method: 'GET',
+//             credentials: 'include'
+//         });
 
-        if (!response.ok) {
-            handleSessionExpired();
-            return;
-        }
+//         if (!response.ok) {
+//             handleSessionExpired();
+//             return;
+//         }
 
-        const data = await response.json();
-        if (data.accessToken) {
-            localStorage.setItem('token', data.accessToken);
-            token = data.accessToken;
-            console.log('Access token berhasil diperbarui saat memuat halaman.');
-        } else {
-            handleSessionExpired();
-            return;
-        }
-    } catch (err) {
-        console.error('Gagal refresh token saat memuat halaman:', err);
-        handleSessionExpired();
-        return;
-    }
+//         const data = await response.json();
+//         if (data.accessToken) {
+//             localStorage.setItem('token', data.accessToken);
+//             token = data.accessToken;
+//             console.log('Access token berhasil diperbarui saat memuat halaman.');
+//         } else {
+//             handleSessionExpired();
+//             return;
+//         }
+//     } catch (err) {
+//         console.error('Gagal refresh token saat memuat halaman:', err);
+//         handleSessionExpired();
+//         return;
+//     }
 
-    fetchNotes();
-    window.refreshIntervalId = setupTokenRefresh();
-}
+//     fetchNotes();
+//     window.refreshIntervalId = setupTokenRefresh();
+// }
 
 async function fetchNotes() {
     try {
