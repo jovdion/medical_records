@@ -12,8 +12,6 @@ function joinUrl(base, path) {
 
 // Gunakan let agar token bisa diperbarui
 let token = localStorage.getItem('token');
-let isRefreshing = false; // Flag untuk mencegah refresh token ganda
-let failedQueue = []; // Antrian permintaan yang gagal saat refresh token berlangsung
 
 // Fungsi untuk menangani session expired
 function handleSessionExpired() {
@@ -25,18 +23,6 @@ function handleSessionExpired() {
     // Set token menjadi null setelah dihapus dari localStorage
     token = null;
     window.location.href = 'login.html';
-}
-
-// Fungsi untuk memproses antrian permintaan yang gagal
-function processQueue(error, newToken = null) {
-    failedQueue.forEach(prom => {
-        if (error) {
-            prom.reject(error);
-        } else {
-            prom.resolve(newToken);
-        }
-    });
-    failedQueue = [];
 }
 
 async function apiRequest(url, options = {}) {
@@ -394,32 +380,50 @@ function editNote(id, name, judul, isi_catatan) {
 }
 
 function setupTokenRefresh() {
-    const intervalMs = 10 * 60 * 1000; // 10 menit
+    // Refresh token setiap 10 detik, karena token expire setiap 15 detik
+    const REFRESH_INTERVAL = 10 * 1000; // 10 detik
 
-    const id = setInterval(async () => {
+    const refreshIntervalId = setInterval(async () => {
         try {
-            const response = await fetch(joinUrl(API_URL, 'refresh'), {
+            // Gunakan endpoint refresh token yang sudah ada
+            const response = await fetch(`${API_URL}/token`, {
                 method: 'GET',
-                credentials: 'include'
+                credentials: 'include' // Penting untuk mengirim cookies
             });
 
-            if (!response.ok) {
+            if (response.ok) {
+                const data = await response.json();
+                if (data.accessToken) {
+                    localStorage.setItem('token', data.accessToken);
+                    console.log('Token berhasil di-refresh');
+                }
+            } else if (response.status === 401 || response.status === 403) {
+                clearInterval(refreshIntervalId);
                 handleSessionExpired();
-                clearInterval(id);
-                return;
             }
-
-            const data = await response.json();
-            if (data.accessToken) {
-                localStorage.setItem('token', data.accessToken);
-                token = data.accessToken;
-            }
-        } catch (err) {
-            console.error('Gagal refresh token:', err);
-            handleSessionExpired();
-            clearInterval(id);
+        } catch (error) {
+            console.error('Gagal refresh token:', error);
         }
-    }, intervalMs);
+    }, REFRESH_INTERVAL);
 
-    return id;
+    return refreshIntervalId;
 }
+
+if (window.location.pathname.includes('index.html') || window.location.pathname === '/' || window.location.pathname.endsWith('/')) {
+    // Tunggu DOM selesai loading
+    document.addEventListener('DOMContentLoaded', () => {
+        fetchNotes();
+
+        // Aktifkan refresh token otomatis dan simpan ID-nya di variabel global
+        // agar bisa diakses dari handleSessionExpired
+        window.refreshIntervalId = setupTokenRefresh();
+    });
+
+    // Tambahkan event listener untuk membersihkan interval saat user meninggalkan halaman
+    window.addEventListener('beforeunload', () => {
+        if (window.refreshIntervalId) {
+            clearInterval(window.refreshIntervalId);
+        }
+    });
+}
+
