@@ -1,6 +1,5 @@
 const API_URL = 'https://notes-be-oscar-final-23024569990.us-central1.run.app';
 
-// Helper untuk gabungkan base URL dan path tanpa double slash
 function joinUrl(base, path) {
     if (base.endsWith('/')) {
         base = base.slice(0, -1);
@@ -11,54 +10,102 @@ function joinUrl(base, path) {
     return base + path;
 }
 
-// Ambil token dari localStorage
-const token = localStorage.getItem('token');
-
-// Cek jika token tidak ada dan user ada di halaman yang memerlukan autentikasi → redirect ke login
-// Asumsi halaman yang memerlukan autentikasi adalah index.html
-if (!token && (window.location.pathname.includes('index.html') || window.location.pathname === '/' || window.location.pathname.endsWith('/'))) {
-    window.location.href = 'login.html';
-}
+// Gunakan let agar token bisa diperbarui
+let token = localStorage.getItem('token');
+let isRefreshing = false; // Flag untuk mencegah refresh token ganda
+let failedQueue = []; // Antrian permintaan yang gagal saat refresh token berlangsung
 
 // Fungsi untuk menangani session expired
 function handleSessionExpired() {
     alert('Sesi Anda telah habis. Silakan login ulang.');
     localStorage.removeItem('token');
-
-    // Hentikan refresh interval jika ada
     if (window.refreshIntervalId) {
         clearInterval(window.refreshIntervalId);
     }
-
+    // Set token menjadi null setelah dihapus dari localStorage
+    token = null;
     window.location.href = 'login.html';
 }
 
-// Fungsi untuk memeriksa respons API jika token tidak valid
-function checkTokenValidity(response) {
-    if (response.status === 401 || response.status === 403) {
-        handleSessionExpired();
-        return false;
-    }
-    return true;
+// Fungsi untuk memproses antrian permintaan yang gagal
+function processQueue(error, newToken = null) {
+    failedQueue.forEach(prom => {
+        if (error) {
+            prom.reject(error);
+        } else {
+            prom.resolve(newToken);
+        }
+    });
+    failedQueue = [];
 }
 
-// Fungsi untuk melakukan request API dengan validasi token
-async function apiRequest(url, options = {}) {
+// Fungsi untuk melakukan request API dengan validasi token dan retry
+async function apiRequest(url, options = {}, isRetry = false) {
     try {
-        // Pastikan header authorization selalu ada
         if (!options.headers) {
             options.headers = {};
         }
-        options.headers.Authorization = `Bearer ${token}`;
+        if (token) { // Pastikan token ada sebelum menambahkannya
+            options.headers.Authorization = `Bearer ${token}`;
+        }
 
         const response = await fetch(url, options);
 
-        // Cek validitas token untuk semua request
-        if (!checkTokenValidity(response)) {
-            return null;
+        // Jika 401/403 dan ini bukan permintaan retry, coba refresh token
+        if ((response.status === 401 || response.status === 403) && !isRetry) {
+            if (isRefreshing) {
+                // Jika sudah ada proses refresh, masukkan permintaan ini ke antrian
+                return new Promise((resolve, reject) => {
+                    failedQueue.push({ resolve, reject });
+                }).then(() => {
+                    // Setelah refresh selesai, coba lagi permintaan asli dengan token baru
+                    return apiRequest(url, options, true);
+                }).catch(err => {
+                    return Promise.reject(err);
+                });
+            }
+
+            isRefreshing = true; // Set flag sedang refresh
+
+            // Coba refresh token
+            const refreshResponse = await fetch(joinUrl(API_URL, 'refresh'), {
+                method: 'GET',
+                credentials: 'include'
+            });
+
+            if (!refreshResponse.ok) {
+                // Refresh token gagal, sesi benar-benar habis
+                isRefreshing = false;
+                processQueue(new Error("Refresh token failed")); // Tolak semua antrian
+                handleSessionExpired();
+                return null; // Menghentikan alur saat ini
+            }
+
+            const data = await refreshResponse.json();
+            if (data.accessToken) {
+                localStorage.setItem('token', data.accessToken);
+                token = data.accessToken; // Perbarui variabel token global
+                isRefreshing = false;
+                processQueue(null, data.accessToken); // Lanjutkan semua permintaan antrian
+
+                // Coba lagi permintaan asli dengan token yang baru
+                return apiRequest(url, options, true);
+            } else {
+                // Jika tidak ada accessToken baru, anggap refresh gagal
+                isRefreshing = false;
+                processQueue(new Error("No new access token")); // Tolak semua antrian
+                handleSessionExpired();
+                return null;
+            }
         }
 
-        return response;
+        // Jika respons 200 OK atau bukan 401/403 yang ditangani
+        if (!response.ok) {
+            // Ini untuk status non-OK lainnya selain 401/403 yang ditangani di atas
+            return Promise.reject(response);
+        }
+
+        return response; // Kembalikan respons jika berhasil
     } catch (err) {
         console.error("API Request Error:", err);
         throw err;
@@ -93,6 +140,7 @@ if (loginForm) {
 
             const data = await response.json();
             localStorage.setItem("token", data.accessToken);
+            token = data.accessToken; // Perbarui variabel token global
 
             window.location.href = "index.html";
         } catch (err) {
@@ -158,13 +206,13 @@ if (registerForm) {
             strengthMeter.style.width = strength + '%';
 
             if (strength <= 25) {
-                strengthMeter.style.backgroundColor = '#ff4d4d'; // Merah
+                strengthMeter.style.backgroundColor = '#ff4d4d';
             } else if (strength <= 50) {
-                strengthMeter.style.backgroundColor = '#ffa64d'; // Oranye
+                strengthMeter.style.backgroundColor = '#ffa64d';
             } else if (strength <= 75) {
-                strengthMeter.style.backgroundColor = '#ffff4d'; // Kuning
+                strengthMeter.style.backgroundColor = '#ffff4d';
             } else {
-                strengthMeter.style.backgroundColor = '#4dff4d'; // Hijau
+                strengthMeter.style.backgroundColor = '#4dff4d';
             }
         });
     }
@@ -190,11 +238,8 @@ if (catatanForm && catatanIdField && namaField && judulField && isiField && cata
     cancelBtn.addEventListener('click', resetForm);
     catatanForm.addEventListener('submit', handleCatatanSubmit);
 
-    document.addEventListener('DOMContentLoaded', () => {
-        fetchNotes();
-        window.refreshIntervalId = setupTokenRefresh();
-    });
-
+    document.addEventListener('DOMContentLoaded', initializeAuthAndFetchNotes);
+    
     window.addEventListener('beforeunload', () => {
         if (window.refreshIntervalId) {
             clearInterval(window.refreshIntervalId);
@@ -216,9 +261,48 @@ if (logoutBtn) {
             if (window.refreshIntervalId) {
                 clearInterval(window.refreshIntervalId);
             }
+            token = null; // Pastikan token global juga null setelah logout
             window.location.href = 'login.html';
         }
     });
+}
+
+async function initializeAuthAndFetchNotes() {
+    // Cek apakah token sudah ada, jika tidak, arahkan ke login
+    if (!token) {
+        handleSessionExpired(); // Ini akan redirect ke login
+        return;
+    }
+
+    // Coba refresh token saat halaman dimuat
+    try {
+        const response = await fetch(joinUrl(API_URL, 'refresh'), {
+            method: 'GET',
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            handleSessionExpired();
+            return;
+        }
+
+        const data = await response.json();
+        if (data.accessToken) {
+            localStorage.setItem('token', data.accessToken);
+            token = data.accessToken;
+            console.log('Access token berhasil diperbarui saat memuat halaman.');
+        } else {
+            handleSessionExpired();
+            return;
+        }
+    } catch (err) {
+        console.error('Gagal refresh token saat memuat halaman:', err);
+        handleSessionExpired();
+        return;
+    }
+
+    fetchNotes();
+    window.refreshIntervalId = setupTokenRefresh();
 }
 
 async function fetchNotes() {
@@ -249,14 +333,15 @@ async function fetchNotes() {
 
         notes.forEach(note => {
             const row = document.createElement('tr');
-            // Backend mengirim 'konten' saat mengambil data
+            // MENGGUNAKAN note.catatan_id sebagai ID
+            // Pastikan properti ini benar-benar ada di objek note dari backend
             row.innerHTML = `
                 <td>${note.name || 'N/A'}</td>
                 <td>${note.judul}</td>
-                <td>${note.isi_catatan}</td>
+                <td>${note.isi_catatan || ''}</td>
                 <td>
-                    <button onclick="editNote(${note.id}, '${note.name}', '${note.judul}', '${note.isi_catatan}')" class="edit">Edit</button>
-                    <button onclick="deleteNote(${note.id})" class="delete">Hapus</button>
+                    <button onclick="editNote(${note.catatan_id}, '${note.name}', '${note.judul}', '${note.isi_catatan}')" class="edit">Edit</button>
+                    <button onclick="deleteNote(${note.catatan_id})" class="delete">Hapus</button>
                 </td>
             `;
             catatanList.appendChild(row);
@@ -287,24 +372,15 @@ async function handleCatatanSubmit(event) {
     const id = catatanIdField.value;
     const name = namaField.value;
     const judul = judulField.value;
-    const isi_catatan = isiField.value; // Menggunakan 'isi_catatan' sesuai harapan backend
+    const isi_catatan = isiField.value;
 
-    // Validasi di sisi klien sebelum mengirim permintaan
     if (!name || !judul || !isi_catatan) {
         alert('Nama, judul, dan isi catatan tidak boleh kosong.');
-        return; // Hentikan eksekusi jika ada field yang kosong
+        return;
     }
 
-    // --- DEBUGGING: Log nilai sebelum dikirim ---
-    console.log('Nilai yang akan dikirim:');
-    console.log('Nama:', name);
-    console.log('Judul:', judul);
-    console.log('Isi Catatan:', isi_catatan);
-    // --- END DEBUGGING ---
-
-    debugger;
-
     const method = id ? 'PUT' : 'POST';
+    // Menggunakan ID yang ditangkap dari hidden field
     const url = id ? `${API_URL}/catatan-update/${id}` : `${API_URL}/catatan`;
 
     try {
@@ -313,7 +389,6 @@ async function handleCatatanSubmit(event) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            // Mengirim 'isi_catatan' sebagai kunci untuk isi catatan, sesuai harapan backend
             body: JSON.stringify({ name, judul, isi_catatan })
         });
 
@@ -358,10 +433,10 @@ async function deleteNote(id) {
 function editNote(id, name, judul, isi_catatan) {
     if (!catatanIdField || !namaField || !judulField || !isiField || !formTitle || !submitBtn || !cancelBtn || !statusDiv) return;
 
-    catatanIdField.value = id;
+    catatanIdField.value = id; // Set ID ke hidden field
     namaField.value = name;
     judulField.value = judul;
-    isiField.value = isi_catatan; // 'konten' digunakan di sini karena diterima dari fetchNotes
+    isiField.value = isi_catatan;
     formTitle.textContent = 'Edit Catatan';
     submitBtn.textContent = 'Simpan';
     cancelBtn.style.display = 'inline';
@@ -387,6 +462,7 @@ function setupTokenRefresh() {
             const data = await response.json();
             if (data.accessToken) {
                 localStorage.setItem('token', data.accessToken);
+                token = data.accessToken;
             }
         } catch (err) {
             console.error('Gagal refresh token:', err);
