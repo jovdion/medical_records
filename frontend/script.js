@@ -25,8 +25,26 @@ function handleSessionExpired() {
     window.location.href = 'login.html';
 }
 
+// Fungsi untuk mengecek validitas token dari response
+function checkTokenValidity(response) {
+    if (response.status === 401 || response.status === 403) {
+        console.log('Token tidak valid atau expired');
+        handleSessionExpired();
+        return false;
+    }
+    return true;
+}
+
 async function apiRequest(url, options = {}) {
     try {
+        // Pastikan token ter-update dari localStorage
+        token = localStorage.getItem('token');
+        
+        if (!token) {
+            handleSessionExpired();
+            return null;
+        }
+
         // Pastikan header authorization selalu ada
         if (!options.headers) {
             options.headers = {};
@@ -200,49 +218,38 @@ if (logoutBtn) {
     });
 }
 
-// async function initializeAuthAndFetchNotes() {
-//     // Cek apakah token sudah ada, jika tidak, arahkan ke login
-//     if (!token) {
-//         handleSessionExpired(); // Ini akan redirect ke login
-//         return;
-//     }
+// Fungsi untuk inisialisasi aplikasi
+async function initializeApp() {
+    // Pastikan token ter-update dari localStorage
+    token = localStorage.getItem('token');
+    
+    // Cek apakah token ada
+    if (!token) {
+        console.log('Token tidak ditemukan, redirect ke login');
+        window.location.href = 'login.html';
+        return;
+    }
 
-//     // Coba refresh token saat halaman dimuat
-//     try {
-//         const response = await fetch(joinUrl(API_URL, 'refresh'), {
-//             method: 'GET',
-//             credentials: 'include'
-//         });
-
-//         if (!response.ok) {
-//             handleSessionExpired();
-//             return;
-//         }
-
-//         const data = await response.json();
-//         if (data.accessToken) {
-//             localStorage.setItem('token', data.accessToken);
-//             token = data.accessToken;
-//             console.log('Access token berhasil diperbarui saat memuat halaman.');
-//         } else {
-//             handleSessionExpired();
-//             return;
-//         }
-//     } catch (err) {
-//         console.error('Gagal refresh token saat memuat halaman:', err);
-//         handleSessionExpired();
-//         return;
-//     }
-
-//     fetchNotes();
-//     window.refreshIntervalId = setupTokenRefresh();
-// }
+    console.log('Token ditemukan, memuat catatan...');
+    
+    // Coba fetch notes untuk memastikan token masih valid
+    await fetchNotes();
+    
+    // Jika fetchNotes berhasil, baru setup token refresh
+    if (token) { // Pastikan token masih ada setelah fetchNotes
+        window.refreshIntervalId = setupTokenRefresh();
+        console.log('Token refresh setup berhasil');
+    }
+}
 
 async function fetchNotes() {
     try {
         const response = await apiRequest(`${API_URL}/catatan`);
 
-        if (!response) return;
+        if (!response) {
+            console.log('Response null dari apiRequest');
+            return;
+        }
 
         if (!response.ok) {
             throw new Error("Gagal mengambil catatan");
@@ -266,8 +273,6 @@ async function fetchNotes() {
 
         notes.forEach(note => {
             const row = document.createElement('tr');
-            // MENGGUNAKAN note.catatan_id sebagai ID
-            // Pastikan properti ini benar-benar ada di objek note dari backend
             row.innerHTML = `
                 <td>${note.catatan_id}</td>
                 <td>${note.name}</td>
@@ -280,6 +285,8 @@ async function fetchNotes() {
             `;
             catatanList.appendChild(row);
         });
+
+        console.log('Catatan berhasil dimuat');
 
     } catch (error) {
         console.error('Error fetching notes:', error);
@@ -314,7 +321,6 @@ async function handleCatatanSubmit(event) {
     }
 
     const method = id ? 'PUT' : 'POST';
-    // Menggunakan ID yang ditangkap dari hidden field
     const url = id ? `${API_URL}/catatan-update/${id}` : `${API_URL}/catatan`;
 
     try {
@@ -367,7 +373,7 @@ async function deleteNote(id) {
 function editNote(id, name, judul, isi_catatan) {
     if (!catatanIdField || !namaField || !judulField || !isiField || !formTitle || !submitBtn || !cancelBtn || !statusDiv) return;
 
-    catatanIdField.value = id; // Set ID ke hidden field
+    catatanIdField.value = id;
     namaField.value = name;
     judulField.value = judul;
     isiField.value = isi_catatan;
@@ -386,13 +392,14 @@ function setupTokenRefresh() {
             // Gunakan endpoint refresh token yang sudah ada
             const response = await fetch(`${API_URL}/token`, {
                 method: 'GET',
-                credentials: 'include' // Penting untuk mengirim cookies
+                credentials: 'include'
             });
 
             if (response.ok) {
                 const data = await response.json();
                 if (data.accessToken) {
                     localStorage.setItem('token', data.accessToken);
+                    token = data.accessToken; // Update variabel global
                     console.log('Token berhasil di-refresh');
                 }
             } else if (response.status === 401 || response.status === 403) {
@@ -407,21 +414,17 @@ function setupTokenRefresh() {
     return refreshIntervalId;
 }
 
+// Inisialisasi aplikasi saat halaman index.html dimuat
 if (window.location.pathname.includes('index.html') || window.location.pathname === '/' || window.location.pathname.endsWith('/')) {
-    // Tunggu DOM selesai loading
     document.addEventListener('DOMContentLoaded', () => {
-        fetchNotes();
-
-        // Aktifkan refresh token otomatis dan simpan ID-nya di variabel global
-        // agar bisa diakses dari handleSessionExpired
-        window.refreshIntervalId = setupTokenRefresh();
+        console.log('DOM loaded, inisialisasi aplikasi...');
+        initializeApp();
     });
 
-    // Tambahkan event listener untuk membersihkan interval saat user meninggalkan halaman
+    // Bersihkan interval saat user meninggalkan halaman
     window.addEventListener('beforeunload', () => {
         if (window.refreshIntervalId) {
             clearInterval(window.refreshIntervalId);
         }
     });
 }
-
