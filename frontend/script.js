@@ -343,6 +343,7 @@ async function fetchNotes() {
                     <button onclick="editNote(${note.catatan_id}, '${note.name}', '${note.judul}', '${note.isi_catatan}')" class="edit">Edit</button>
                     <button onclick="deleteNote(${note.catatan_id})" class="delete">Hapus</button>
                 </td>
+                <h6>${note.catatan_id}</h6>
             `;
             catatanList.appendChild(row);
         });
