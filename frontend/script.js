@@ -336,10 +336,10 @@ async function fetchNotes() {
             // MENGGUNAKAN note.catatan_id sebagai ID
             // Pastikan properti ini benar-benar ada di objek note dari backend
             row.innerHTML = `
-                <td>${note.catatan_id || 'N/A'}</td>
-                <td>${note.name || 'N/A'}</td>
+                <td>${note.catatan_id}</td>
+                <td>${note.name}</td>
                 <td>${note.judul}</td>
-                <td>${note.isi_catatan || ''}</td>
+                <td>${note.isi_catatan}</td>
                 <td>
                     <button onclick="editNote(${note.catatan_id}, '${note.name}', '${note.judul}', '${note.isi_catatan}')" class="edit">Edit</button>
                     <button onclick="deleteNote(${note.catatan_id})" class="delete">Hapus</button>
