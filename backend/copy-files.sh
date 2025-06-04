@@ -25,5 +25,15 @@ cp controllers/DashboardController.js controllers/DashboardController.js
 # Copy Middleware files with correct case
 cp middleware/verifytoken.js middleware/VerifyToken.js
 
+# Copy Model files with correct case and ensure consistent naming
+cp models/Usermodel.js models/UserModel.js
+cp models/DoctorModel.js models/DoctorModel.js
+cp models/PatientModel.js models/PatientModel.js
+cp models/MedicalRecordModel.js models/MedicalRecordModel.js
+
+# Set permissions
+find . -type f -name "*.js" -exec chmod 644 {} \;
+find . -type d -exec chmod 755 {} \;
+
 # Make the script executable
 chmod +x copy-files.sh 
