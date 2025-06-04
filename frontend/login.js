@@ -1,12 +1,25 @@
 import { CONFIG, makeApiRequest } from './js/utils.js';
 import { SESSION, debugLog, errorLog, showStatusMessage, safeRedirect } from './script.js';
 
-// Check if we're already logged in
-const token = localStorage.getItem('token');
-const currentUser = localStorage.getItem('currentUser');
-if (token && currentUser) {
-    debugLog('User already logged in, redirecting to dashboard');
-    safeRedirect('dashboard.html');
+// Only check login state if we're on the login page
+if (window.location.pathname.toLowerCase().includes('login.html')) {
+    // Check if we're already logged in
+    const token = localStorage.getItem('token');
+    const currentUser = localStorage.getItem('currentUser');
+    
+    if (token && currentUser) {
+        debugLog('Found existing session, verifying token...');
+        makeApiRequest(CONFIG.ENDPOINTS.VERIFY)
+            .then(() => {
+                debugLog('Token valid, redirecting to dashboard');
+                safeRedirect('dashboard.html');
+            })
+            .catch((err) => {
+                debugLog('Invalid token, clearing session:', err);
+                localStorage.removeItem('token');
+                localStorage.removeItem('currentUser');
+            });
+    }
 }
 
 // LOGIN
@@ -66,9 +79,11 @@ if (loginForm) {
             
             showStatusMessage(data.msg || 'Login berhasil! Mengalihkan ke dashboard...', 'success');
             
-            // Small delay to show the success message
+            // Delay redirect to show success message
             setTimeout(() => {
-                safeRedirect('dashboard.html');
+                if (!SESSION.redirecting) {
+                    safeRedirect('dashboard.html');
+                }
             }, 1500);
 
         } catch (err) {
@@ -78,14 +93,20 @@ if (loginForm) {
             // Clear password field on error
             passwordInput.value = '';
             passwordInput.focus();
+            
+            // Clear any invalid session
+            localStorage.removeItem('token');
+            localStorage.removeItem('currentUser');
         } finally {
             // Re-enable form after a delay
             setTimeout(() => {
-                loginButton.disabled = false;
-                emailInput.disabled = false;
-                passwordInput.disabled = false;
-                loginSpinner.style.display = 'none';
-                loginText.textContent = 'Masuk';
+                if (!SESSION.redirecting) {
+                    loginButton.disabled = false;
+                    emailInput.disabled = false;
+                    passwordInput.disabled = false;
+                    loginSpinner.style.display = 'none';
+                    loginText.textContent = 'Masuk';
+                }
             }, 1000);
         }
     });

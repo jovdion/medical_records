@@ -96,6 +96,7 @@ async function checkAuth() {
         
         const currentPath = window.location.pathname.toLowerCase();
         const isOnLoginPage = isLoginPage();
+        
         debugLog('Auth state:', { 
             path: currentPath,
             isLoginPage: isOnLoginPage,
@@ -104,53 +105,48 @@ async function checkAuth() {
             lastCheck: SESSION.lastCheck
         });
 
-        // If on index.html, redirect to login or dashboard
-        if (currentPath.endsWith('index.html') || 
-            currentPath === '/' || 
-            currentPath === '') {
-            debugLog('On index page, redirecting...');
-            if (SESSION.token && SESSION.user) {
-                safeRedirect('dashboard.html');
-            } else {
-                safeRedirect('login.html');
-            }
-            return;
-        }
-
-        // Handle login/register pages
+        // Skip token verification for login and register pages
         if (isOnLoginPage) {
             if (SESSION.token && SESSION.user) {
-                debugLog('Authenticated user on login/register page, redirecting to dashboard');
-                safeRedirect('dashboard.html');
+                try {
+                    // Quick token verification before redirecting
+                    await makeApiRequest(CONFIG.ENDPOINTS.VERIFY);
+                    debugLog('Token valid, redirecting to dashboard');
+                    safeRedirect('dashboard.html');
+                } catch (err) {
+                    debugLog('Invalid token on login page, clearing session');
+                    clearSession();
+                }
             }
             return;
         }
 
-        // Handle other pages
-        if (!SESSION.token || !SESSION.user) {
-            debugLog('Unauthenticated user on protected page, redirecting to login');
-            clearSession();
-            safeRedirect('login.html');
-            return;
-        }
-
-        // Optional: Verify token is still valid with backend
-        try {
-            const verifyResult = await makeApiRequest(CONFIG.ENDPOINTS.VERIFY);
-            debugLog('Token verification successful:', verifyResult);
-        } catch (err) {
-            errorLog('Token verification failed:', err);
+        // For all other pages, verify token if exists
+        if (SESSION.token && SESSION.user) {
+            try {
+                const verifyResult = await makeApiRequest(CONFIG.ENDPOINTS.VERIFY);
+                debugLog('Token verification successful:', verifyResult);
+            } catch (err) {
+                errorLog('Token verification failed:', err);
+                clearSession();
+                if (!isOnLoginPage) {
+                    safeRedirect('login.html');
+                }
+                return;
+            }
+        } else {
+            // No token or user, redirect to login
+            debugLog('No token or user found, redirecting to login');
             clearSession();
             if (!isOnLoginPage) {
                 safeRedirect('login.html');
             }
-            return;
         }
 
     } catch (err) {
         errorLog('Error during auth check:', err);
         clearSession();
-        if (!isLoginPage()) {
+        if (!isOnLoginPage) {
             safeRedirect('login.html');
         }
     } finally {
