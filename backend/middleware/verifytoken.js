@@ -11,18 +11,32 @@ export const verifyToken = (req, res, next) => {
     console.log('Cookies:', req.cookies);
 
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-
-    console.log('Auth header:', authHeader ? authHeader.substring(0, 20) + '...' : 'none');
-    console.log('Extracted token:', token ? token.substring(0, 20) + '...' : 'none');
-
-    if (!token) {
-        console.log('No token provided');
-        return res.status(401).json({ msg: "No token provided" });
+    
+    // Validate Authorization header format
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        console.log('Invalid Authorization header format');
+        return res.status(401).json({ msg: "Invalid Authorization header format" });
     }
+
+    // Extract and clean token
+    const token = authHeader.split(' ')[1].trim();
+    
+    // Basic JWT format validation
+    if (!token || !token.startsWith('ey')) {
+        console.log('Invalid token format');
+        return res.status(401).json({ msg: "Invalid token format" });
+    }
+
+    console.log('Auth header:', authHeader.substring(0, 20) + '...');
+    console.log('Extracted token:', token.substring(0, 20) + '...');
 
     try {
         console.log('Verifying token with secret:', process.env.ACCESS_TOKEN_SECRET ? 'present' : 'missing');
+        
+        if (!process.env.ACCESS_TOKEN_SECRET) {
+            console.error('ACCESS_TOKEN_SECRET is missing');
+            return res.status(500).json({ msg: "Server configuration error" });
+        }
         
         const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
         console.log('Token verified successfully:', {
@@ -39,6 +53,12 @@ export const verifyToken = (req, res, next) => {
         if (expiresIn < 300) { // 5 minutes
             console.log('Token is about to expire');
             res.set('X-Token-Expiring', 'true');
+        }
+        
+        // Validate required claims
+        if (!decoded.userId || !decoded.username || !decoded.role) {
+            console.error('Token missing required claims');
+            return res.status(401).json({ msg: "Invalid token: missing required claims" });
         }
         
         req.userId = decoded.userId;

@@ -88,11 +88,25 @@ async function makeApiRequest(endpoint, options = {}) {
     // Add Authorization header if we have a token
     if (currentToken) {
         const cleanToken = currentToken.trim();
-        headers['Authorization'] = `Bearer ${cleanToken}`;
-        logDebug('Adding Authorization header', {
-            token: cleanToken.substring(0, 20) + '...',
-            headerValue: headers['Authorization']
-        });
+        if (cleanToken && cleanToken.startsWith('ey')) {
+            headers['Authorization'] = `Bearer ${cleanToken}`;
+            logDebug('Adding Authorization header', {
+                token: cleanToken.substring(0, 20) + '...',
+                headerValue: headers['Authorization']
+            });
+        } else {
+            logDebug('Invalid token format', {
+                tokenPreview: cleanToken ? cleanToken.substring(0, 20) + '...' : 'none'
+            });
+            if (!isLoginRequest) {
+                localStorage.removeItem('token');
+                localStorage.removeItem('currentUser');
+                if (!isOnLoginPage) {
+                    window.location.replace('/login.html');
+                }
+                throw new Error('Invalid token format');
+            }
+        }
     }
 
     const requestOptions = {
@@ -143,22 +157,25 @@ async function makeApiRequest(endpoint, options = {}) {
 
         // Check if token is about to expire
         const tokenExpiring = response.headers.get('X-Token-Expiring');
-        if (tokenExpiring === 'true') {
+        if (tokenExpiring === 'true' && currentToken) {
             logDebug('Token is about to expire, attempting refresh');
             try {
                 const refreshResponse = await fetch(joinUrl(CONFIG.BASE_URL, CONFIG.ENDPOINTS.VERIFY), {
                     ...CONFIG.REQUEST_OPTIONS,
                     headers: {
                         ...CONFIG.HEADERS,
-                        'Authorization': `Bearer ${currentToken}`
+                        'Authorization': `Bearer ${currentToken.trim()}`
                     }
                 });
                 
                 if (refreshResponse.ok) {
                     const refreshData = await refreshResponse.json();
                     if (refreshData.accessToken) {
-                        localStorage.setItem('token', refreshData.accessToken);
-                        logDebug('Token refreshed successfully');
+                        const newToken = refreshData.accessToken.trim();
+                        if (newToken.startsWith('ey')) {
+                            localStorage.setItem('token', newToken);
+                            logDebug('Token refreshed successfully');
+                        }
                     }
                 }
             } catch (refreshError) {
@@ -240,6 +257,10 @@ async function makeApiRequest(endpoint, options = {}) {
         // If this is a successful login, update the session immediately
         if (isLoginRequest && data.accessToken) {
             const cleanToken = data.accessToken.trim();
+            if (!cleanToken.startsWith('ey')) {
+                throw new Error('Invalid token format received from server');
+            }
+            
             logDebug('Updating session after successful login', {
                 hasToken: !!cleanToken,
                 hasUser: !!data.user,
