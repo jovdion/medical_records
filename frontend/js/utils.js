@@ -78,7 +78,7 @@ async function makeApiRequest(endpoint, options = {}) {
         ...options,
         headers: {
             ...CONFIG.HEADERS,
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+            ...(token && !isLoginRequest ? { 'Authorization': `Bearer ${token}` } : {}),
             ...(options.headers || {})
         }
     };
@@ -130,8 +130,8 @@ async function makeApiRequest(endpoint, options = {}) {
                 isVerifyRequest
             });
             
-            // Only clear session if it's not a login request
-            if (!isLoginRequest) {
+            // Only clear session if it's not a login request and we have a token
+            if (!isLoginRequest && token) {
                 localStorage.removeItem('token');
                 localStorage.removeItem('currentUser');
                 
@@ -155,6 +155,7 @@ async function makeApiRequest(endpoint, options = {}) {
 
         // If this is a successful login, update the session immediately
         if (isLoginRequest && data.accessToken) {
+            logDebug('Updating session after successful login');
             localStorage.setItem('token', data.accessToken);
             if (data.user) {
                 localStorage.setItem('currentUser', JSON.stringify(data.user));

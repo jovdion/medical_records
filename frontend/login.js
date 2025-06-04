@@ -74,7 +74,7 @@ if (loginForm) {
 
             debugLog('Login successful', { user: data.user });
             
-            // Update session and storage
+            // Update session
             SESSION.token = data.accessToken;
             SESSION.user = data.user;
             SESSION.lastCheck = Date.now();
@@ -82,8 +82,11 @@ if (loginForm) {
             
             showStatusMessage(data.msg || 'Login berhasil! Mengalihkan ke dashboard...', 'success');
             
-            // Verify token before redirecting
+            // Small delay before verifying token
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
             try {
+                debugLog('Verifying token after login');
                 await makeApiRequest(CONFIG.ENDPOINTS.VERIFY);
                 debugLog('Token verified after login');
                 
@@ -92,7 +95,7 @@ if (loginForm) {
                     if (!SESSION.redirecting) {
                         safeRedirect('dashboard.html');
                     }
-                }, 1500);
+                }, 1000);
             } catch (verifyErr) {
                 errorLog('Token verification failed after login', verifyErr);
                 throw new Error('Gagal memverifikasi sesi login. Silakan coba lagi.');
