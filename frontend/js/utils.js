@@ -1,7 +1,7 @@
 // API Configuration
 const CONFIG = {
     // Change this based on environment
-    BASE_URL: window._env_?.API_URL || 'http://localhost:3000',
+    BASE_URL: window._env_?.API_URL || 'https://medical-records-be-913201672104.us-central1.run.app',
     API_TIMEOUT: 30000, // 30 seconds
     
     // API Endpoints
