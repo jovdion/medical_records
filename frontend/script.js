@@ -33,7 +33,8 @@ const SESSION = {
     user: null,
     lastCheck: null,
     isCheckingAuth: false,
-    redirecting: false
+    redirecting: false,
+    lastRedirect: null
 };
 
 function loadSession() {
@@ -54,6 +55,7 @@ function clearSession() {
     SESSION.token = null;
     SESSION.user = null;
     SESSION.lastCheck = null;
+    SESSION.lastRedirect = null;
 }
 
 function isLoginPage() {
@@ -62,8 +64,16 @@ function isLoginPage() {
 }
 
 function safeRedirect(url) {
+    // Prevent redirect if already redirecting
     if (SESSION.redirecting) {
         debugLog('Redirect already in progress, skipping');
+        return;
+    }
+    
+    // Prevent redirect loop
+    const now = Date.now();
+    if (SESSION.lastRedirect && (now - SESSION.lastRedirect) < 2000) {
+        debugLog('Too many redirects, waiting...');
         return;
     }
     
@@ -77,10 +87,12 @@ function safeRedirect(url) {
     }
     
     SESSION.redirecting = true;
+    SESSION.lastRedirect = now;
     debugLog('Redirecting to:', url);
     
-    // Use replace for login/logout redirects, use assign for others
-    if (url.includes('login.html') || currentPath.includes('login.html')) {
+    // Use replace for login/register redirects, use assign for others
+    if (url.includes('login.html') || url.includes('register.html') || 
+        currentPath.includes('login.html') || currentPath.includes('register.html')) {
         window.location.replace(url);
     } else {
         window.location.assign(url);
@@ -89,6 +101,7 @@ function safeRedirect(url) {
 
 // Check authentication status
 async function checkAuth() {
+    // Prevent multiple simultaneous checks
     if (SESSION.isCheckingAuth || SESSION.redirecting) {
         debugLog('Auth check or redirect already in progress, skipping');
         return;
@@ -111,12 +124,12 @@ async function checkAuth() {
             lastCheck: SESSION.lastCheck
         });
 
-        // Skip token verification for login and register pages
+        // Handle login/register pages
         if (isOnLoginPage) {
             if (SESSION.token && SESSION.user) {
                 try {
                     // Quick token verification before redirecting
-                    await makeApiRequest(CONFIG.ENDPOINTS.VERIFY);
+                    const verifyResult = await makeApiRequest(CONFIG.ENDPOINTS.VERIFY);
                     debugLog('Token valid, redirecting to dashboard');
                     safeRedirect('dashboard.html');
                 } catch (err) {
@@ -160,8 +173,10 @@ async function checkAuth() {
     }
 }
 
-// Initialize auth check on page load
-document.addEventListener('DOMContentLoaded', checkAuth);
+// Initialize auth check on page load with delay
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(checkAuth, 500);
+});
 
 // Fetch patients
 async function fetchPatients() {

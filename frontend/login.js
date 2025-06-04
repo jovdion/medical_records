@@ -7,23 +7,23 @@ if (window.location.pathname.toLowerCase().includes('login.html')) {
     const token = localStorage.getItem('token');
     const currentUser = localStorage.getItem('currentUser');
     
-    if (token && currentUser) {
+    if (token && currentUser && !SESSION.redirecting) {
         debugLog('Found existing session, verifying token...');
-        // Prevent multiple redirects
-        if (!SESSION.redirecting) {
-            makeApiRequest(CONFIG.ENDPOINTS.VERIFY)
-                .then(() => {
-                    debugLog('Token valid, redirecting to dashboard');
+        makeApiRequest(CONFIG.ENDPOINTS.VERIFY)
+            .then(() => {
+                debugLog('Token valid, redirecting to dashboard');
+                if (!SESSION.redirecting) {
                     safeRedirect('dashboard.html');
-                })
-                .catch((err) => {
-                    debugLog('Invalid token, clearing session:', err);
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('currentUser');
-                    SESSION.token = null;
-                    SESSION.user = null;
-                });
-        }
+                }
+            })
+            .catch((err) => {
+                debugLog('Invalid token, clearing session:', err);
+                localStorage.removeItem('token');
+                localStorage.removeItem('currentUser');
+                SESSION.token = null;
+                SESSION.user = null;
+                // Don't redirect, just clear the session
+            });
     }
 }
 

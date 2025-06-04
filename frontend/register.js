@@ -2,7 +2,7 @@ import { CONFIG, makeApiRequest } from './js/utils.js';
 import { SESSION, debugLog, errorLog, showStatusMessage, safeRedirect } from './script.js';
 
 // Check if already logged in
-if (localStorage.getItem('token') && localStorage.getItem('currentUser')) {
+if (localStorage.getItem('token') && localStorage.getItem('currentUser') && !SESSION.redirecting) {
     debugLog('User already logged in, redirecting to dashboard');
     safeRedirect('dashboard.html');
 }
