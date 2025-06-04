@@ -32,24 +32,48 @@ const corsOptions = {
     credentials: true,
     origin: function (origin, callback) {
         const allowedOrigins = [
+            'https://medical-records-fe-913201672104.us-central1.run.app',
             'https://medical-records-be-913201672104.us-central1.run.app',
             'http://localhost:5000',
             'http://localhost:3000',
             undefined // Allow requests with no origin (like mobile apps or curl requests)
         ];
+        
+        // Log the origin for debugging
+        console.log('Request origin:', origin);
+        
         if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
             callback(null, true);
         } else {
+            console.log('Origin not allowed:', origin);
             callback(new Error('Not allowed by CORS'));
         }
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
     exposedHeaders: ['Set-Cookie'],
-    optionsSuccessStatus: 200
+    optionsSuccessStatus: 200,
+    preflightContinue: false,
+    maxAge: 86400 // 24 hours
 };
 
 app.use(cors(corsOptions));
+
+// Add CORS error handling middleware
+app.use((err, req, res, next) => {
+    if (err.message === 'Not allowed by CORS') {
+        console.error('CORS Error:', {
+            origin: req.headers.origin,
+            method: req.method,
+            path: req.path
+        });
+        return res.status(403).json({
+            message: 'CORS not allowed',
+            error: 'Origin not allowed'
+        });
+    }
+    next(err);
+});
 
 // Add error logging middleware
 app.use((err, req, res, next) => {

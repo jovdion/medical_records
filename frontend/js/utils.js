@@ -53,12 +53,20 @@ async function makeApiRequest(endpoint, options = {}) {
             ...CONFIG.HEADERS,
             ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
             ...(options.headers || {})
-        }
+        },
+        credentials: 'include',
+        mode: 'cors'
     };
 
     try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), CONFIG.API_TIMEOUT);
+        
+        console.log('Making API request:', {
+            url,
+            method: requestOptions.method || 'GET',
+            headers: requestOptions.headers
+        });
         
         const response = await fetch(url, {
             ...requestOptions,
@@ -67,7 +75,18 @@ async function makeApiRequest(endpoint, options = {}) {
         
         clearTimeout(timeoutId);
         
-        const data = await response.json();
+        let data;
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            data = await response.json();
+        } else {
+            const text = await response.text();
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                data = { message: text };
+            }
+        }
         
         if (response.status === 401) {
             // Handle unauthorized access
@@ -90,6 +109,17 @@ async function makeApiRequest(endpoint, options = {}) {
     } catch (error) {
         if (error.name === 'AbortError') {
             throw new Error('Request timeout');
+        }
+        
+        // Handle CORS errors
+        if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+            console.error('CORS or Network Error:', {
+                url,
+                error: error.message,
+                origin: window.location.origin
+            });
+            
+            throw new Error('Tidak dapat terhubung ke server. Mohon coba lagi nanti.');
         }
         
         // If it's a network error and we're not on login page, redirect to login
