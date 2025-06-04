@@ -66,7 +66,7 @@ function clearSession() {
 
 function isLoginPage() {
     const path = window.location.pathname.toLowerCase();
-    const isLogin = path.includes('login.html') || path.includes('register.html');
+    const isLogin = path.includes('login') || path.includes('register');
     debugLog('Page Check', { path, isLogin });
     return isLogin;
 }
@@ -93,8 +93,14 @@ function safeRedirect(url) {
         return;
     }
     
-    const currentPath = window.location.pathname.toLowerCase();
-    const targetPath = url.toLowerCase();
+    // Normalize paths
+    const currentPath = window.location.pathname.toLowerCase().replace(/^\/+|\/+$/g, '');
+    let targetPath = url.toLowerCase().replace(/^\/+|\/+$/g, '');
+    
+    // Add .html extension if missing
+    if (!targetPath.includes('.')) {
+        targetPath = `${targetPath}.html`;
+    }
     
     debugLog('Redirect Check', {
         from: currentPath,
@@ -103,21 +109,27 @@ function safeRedirect(url) {
     });
     
     // Prevent redirect to the same page
-    if (currentPath.includes(targetPath)) {
+    if (currentPath === targetPath || 
+        (currentPath.replace('.html', '') === targetPath.replace('.html', ''))) {
         debugLog('Redirect Blocked - Same page');
         return;
     }
     
     SESSION.redirecting = true;
     SESSION.lastRedirect = now;
-    debugLog('Redirecting', { to: url });
+    debugLog('Redirecting', { to: targetPath });
     
     // Use replace for login/register redirects, use assign for others
-    if (url.includes('login.html') || url.includes('register.html') || 
-        currentPath.includes('login.html') || currentPath.includes('register.html')) {
-        window.location.replace(url);
+    const isAuthPage = targetPath.includes('login') || targetPath.includes('register') ||
+                      currentPath.includes('login') || currentPath.includes('register');
+    
+    // Ensure the URL starts with /
+    const finalUrl = targetPath.startsWith('/') ? targetPath : `/${targetPath}`;
+    
+    if (isAuthPage) {
+        window.location.replace(finalUrl);
     } else {
-        window.location.assign(url);
+        window.location.assign(finalUrl);
     }
 }
 

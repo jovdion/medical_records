@@ -37,6 +37,11 @@ function joinUrl(base, path) {
     return base + path;
 }
 
+// Helper function to normalize paths
+function normalizePath(path) {
+    return path.toLowerCase().replace(/^\/+|\/+$/g, '');
+}
+
 // Debug logging function
 function logDebug(type, ...args) {
     if (CONFIG.DEBUG) {
@@ -54,7 +59,8 @@ async function makeApiRequest(endpoint, options = {}) {
     // Don't redirect to login page if we're already there
     const isLoginRequest = endpoint === CONFIG.ENDPOINTS.LOGIN;
     const isVerifyRequest = endpoint === CONFIG.ENDPOINTS.VERIFY;
-    const isOnLoginPage = window.location.pathname.toLowerCase().includes('login.html');
+    const currentPath = normalizePath(window.location.pathname);
+    const isOnLoginPage = currentPath.includes('login') || currentPath === '';
 
     logDebug('API Request', {
         endpoint,
@@ -62,6 +68,7 @@ async function makeApiRequest(endpoint, options = {}) {
         method: options.method || 'GET',
         isLoginRequest,
         isVerifyRequest,
+        currentPath,
         isOnLoginPage,
         hasToken: !!token
     });
