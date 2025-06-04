@@ -58,12 +58,21 @@ function clearSession() {
 
 function isLoginPage() {
     const path = window.location.pathname.toLowerCase();
-    return path.endsWith('login.html') || path.endsWith('register.html');
+    return path.includes('login.html') || path.includes('register.html');
 }
 
 function safeRedirect(url) {
     if (SESSION.redirecting) {
         debugLog('Redirect already in progress, skipping');
+        return;
+    }
+    
+    const currentPath = window.location.pathname.toLowerCase();
+    const targetPath = url.toLowerCase();
+    
+    // Prevent redirect to the same page
+    if (currentPath.includes(targetPath)) {
+        debugLog('Already on target page, skipping redirect');
         return;
     }
     
@@ -74,8 +83,8 @@ function safeRedirect(url) {
 
 // Check authentication status
 async function checkAuth() {
-    if (SESSION.isCheckingAuth) {
-        debugLog('Auth check already in progress, skipping');
+    if (SESSION.isCheckingAuth || SESSION.redirecting) {
+        debugLog('Auth check or redirect already in progress, skipping');
         return;
     }
 
@@ -97,7 +106,7 @@ async function checkAuth() {
 
         // If on index.html, redirect to login or dashboard
         if (currentPath.endsWith('index.html') || 
-            currentPath.endsWith('/') || 
+            currentPath === '/' || 
             currentPath === '') {
             debugLog('On index page, redirecting...');
             if (SESSION.token && SESSION.user) {
@@ -127,11 +136,14 @@ async function checkAuth() {
 
         // Optional: Verify token is still valid with backend
         try {
-            await makeApiRequest(CONFIG.ENDPOINTS.VERIFY);
+            const verifyResult = await makeApiRequest(CONFIG.ENDPOINTS.VERIFY);
+            debugLog('Token verification successful:', verifyResult);
         } catch (err) {
             errorLog('Token verification failed:', err);
             clearSession();
-            safeRedirect('login.html');
+            if (!isOnLoginPage) {
+                safeRedirect('login.html');
+            }
             return;
         }
 

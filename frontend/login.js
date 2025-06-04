@@ -1,6 +1,14 @@
 import { CONFIG, makeApiRequest } from './js/utils.js';
 import { SESSION, debugLog, errorLog, showStatusMessage, safeRedirect } from './script.js';
 
+// Check if we're already logged in
+const token = localStorage.getItem('token');
+const currentUser = localStorage.getItem('currentUser');
+if (token && currentUser) {
+    debugLog('User already logged in, redirecting to dashboard');
+    safeRedirect('dashboard.html');
+}
+
 // LOGIN
 const loginForm = document.getElementById("loginForm");
 if (loginForm) {
@@ -9,8 +17,8 @@ if (loginForm) {
     loginForm.addEventListener("submit", async (e) => {
         e.preventDefault();
         
-        if (SESSION.isCheckingAuth) {
-            debugLog('Auth check in progress, preventing login');
+        if (SESSION.isCheckingAuth || SESSION.redirecting) {
+            debugLog('Auth check or redirect in progress, preventing login');
             return;
         }
 
@@ -61,7 +69,7 @@ if (loginForm) {
             // Small delay to show the success message
             setTimeout(() => {
                 safeRedirect('dashboard.html');
-            }, 1000);
+            }, 1500);
 
         } catch (err) {
             errorLog("Login error:", err);
@@ -71,12 +79,14 @@ if (loginForm) {
             passwordInput.value = '';
             passwordInput.focus();
         } finally {
-            // Re-enable form
-            loginButton.disabled = false;
-            emailInput.disabled = false;
-            passwordInput.disabled = false;
-            loginSpinner.style.display = 'none';
-            loginText.textContent = 'Masuk';
+            // Re-enable form after a delay
+            setTimeout(() => {
+                loginButton.disabled = false;
+                emailInput.disabled = false;
+                passwordInput.disabled = false;
+                loginSpinner.style.display = 'none';
+                loginText.textContent = 'Masuk';
+            }, 1000);
         }
     });
 }
