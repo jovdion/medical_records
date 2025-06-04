@@ -63,9 +63,15 @@ export const Register = async (req, res) => {
 // Login user
 export const Login = async (req, res) => {
     try {
+        console.log('Login attempt:', {
+            email: req.body.email,
+            headers: req.headers
+        });
+
         const { email, password } = req.body;
 
         if (!email || !password) {
+            console.log('Missing credentials');
             return res.status(400).json({ msg: "Email dan password harus diisi" });
         }
 
@@ -74,11 +80,13 @@ export const Login = async (req, res) => {
         });
 
         if (!user) {
+            console.log('User not found:', email);
             return res.status(404).json({ msg: "Email tidak ditemukan" });
         }
 
         const match = await bcrypt.compare(password, user.password);
         if (!match) {
+            console.log('Invalid password for user:', email);
             return res.status(400).json({ msg: "Password salah" });
         }
 
@@ -91,8 +99,10 @@ export const Login = async (req, res) => {
                 role: user.role 
             },
             process.env.ACCESS_TOKEN_SECRET,
-            { expiresIn: "1h" }
+            { expiresIn: "15m" }  // Reduced to 15 minutes for security
         );
+
+        console.log('Access token generated:', accessToken.substring(0, 20) + '...');
 
         // Generate refresh token
         const refreshToken = jwt.sign(
@@ -106,6 +116,8 @@ export const Login = async (req, res) => {
             { expiresIn: "7d" }
         );
 
+        console.log('Refresh token generated:', refreshToken.substring(0, 20) + '...');
+
         // Store refresh token in database
         await Users.update(
             { refresh_token: refreshToken },
@@ -115,9 +127,15 @@ export const Login = async (req, res) => {
         // Set refresh token in cookie
         res.cookie('refreshToken', refreshToken, {
             httpOnly: true,
-            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
             secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict'
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        });
+
+        console.log('Cookie set:', {
+            refreshToken: refreshToken.substring(0, 20) + '...',
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
         });
 
         // Send response with tokens and user info
@@ -133,7 +151,7 @@ export const Login = async (req, res) => {
         });
     } catch (error) {
         console.error("Error during login:", error);
-        res.status(500).json({ msg: "Login Gagal" });
+        res.status(500).json({ msg: "Login Gagal", error: error.message });
     }
 };
 
