@@ -12,11 +12,20 @@ export const refreshToken = async (req, res) => {
         });
         console.log('Cookies:', req.cookies);
         
-        // Get refresh token from cookie
-        const refreshToken = req.cookies?.refreshToken;
+        // Try to get refresh token from different sources
+        let refreshToken = req.cookies?.refreshToken;
+        
+        // If no cookie, try Authorization header
+        if (!refreshToken && req.headers.authorization) {
+            const authHeader = req.headers.authorization;
+            if (authHeader.startsWith('Bearer ')) {
+                refreshToken = authHeader.split(' ')[1].trim();
+                console.log('Using Authorization header as refresh token');
+            }
+        }
         
         if (!refreshToken) {
-            console.log('No refresh token found in cookies');
+            console.log('No refresh token found in cookies or headers');
             return res.status(401).json({ msg: "No refresh token" });
         }
 
@@ -111,6 +120,7 @@ export const refreshToken = async (req, res) => {
             });
 
             res.json({
+                msg: "Token refreshed successfully",
                 accessToken,
                 user: {
                     id: userId,

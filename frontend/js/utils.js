@@ -9,7 +9,8 @@ const CONFIG = {
     ENDPOINTS: {
         LOGIN: '/api/login',
         LOGOUT: '/api/logout',
-        VERIFY: '/api/token',
+        VERIFY: '/api/token/verify',
+        REFRESH: '/api/token/refresh',
         REGISTER: '/api/users',
         PATIENTS: '/api/patients',
         DOCTORS: '/api/doctors',
@@ -91,6 +92,7 @@ async function makeApiRequest(endpoint, options = {}) {
     // Don't redirect to login page if we're already there
     const isLoginRequest = endpoint === CONFIG.ENDPOINTS.LOGIN;
     const isVerifyRequest = endpoint === CONFIG.ENDPOINTS.VERIFY;
+    const isRefreshRequest = endpoint === CONFIG.ENDPOINTS.REFRESH;
     const currentPath = normalizePath(window.location.pathname);
     const isOnLoginPage = currentPath.includes('login') || currentPath === '';
 
@@ -100,6 +102,7 @@ async function makeApiRequest(endpoint, options = {}) {
         method: options.method || 'GET',
         isLoginRequest,
         isVerifyRequest,
+        isRefreshRequest,
         currentPath,
         isOnLoginPage,
         hasAccessToken: !!accessToken,
@@ -147,17 +150,6 @@ async function makeApiRequest(endpoint, options = {}) {
                 }
                 throw new Error('Invalid token format');
             }
-        }
-    }
-
-    // Special handling for verify requests
-    if (isVerifyRequest && !options.method) {
-        options.method = 'POST';
-        if (!options.body) {
-            options.body = JSON.stringify({
-                accessToken: currentToken,
-                refreshToken: refreshToken
-            });
         }
     }
 
@@ -254,6 +246,7 @@ async function makeApiRequest(endpoint, options = {}) {
                 isOnLoginPage,
                 isLoginRequest,
                 isVerifyRequest,
+                isRefreshRequest,
                 hasAccessToken: !!currentToken,
                 hasRefreshToken: !!refreshToken,
                 tokenLength: currentToken ? currentToken.length : 0,
@@ -268,31 +261,38 @@ async function makeApiRequest(endpoint, options = {}) {
                 cookies: document.cookie
             });
 
-            // For verify requests without refresh token, try to use access token as refresh token
-            if (isVerifyRequest && !refreshToken && currentToken) {
+            // Try to refresh token if we get 401 on verify
+            if (isVerifyRequest && !isRefreshRequest && currentToken) {
                 try {
-                    logDebug('Attempting token verification with access token as refresh token', {
+                    logDebug('Attempting token refresh after verify failure', {
                         tokenLength: currentToken.length,
                         tokenStart: currentToken.substring(0, 10),
                         tokenEnd: currentToken.substring(currentToken.length - 10)
                     });
 
-                    // Store the access token as refresh token
-                    setTokens(currentToken, currentToken);
-
-                    // Retry the request
-                    return makeApiRequest(endpoint, {
-                        ...options,
-                        method: 'POST',
-                        body: JSON.stringify({
-                            accessToken: currentToken,
-                            refreshToken: currentToken
-                        })
+                    // Try to refresh the token
+                    const refreshResponse = await makeApiRequest(CONFIG.ENDPOINTS.REFRESH, {
+                        headers: {
+                            ...CONFIG.HEADERS,
+                            'Authorization': `Bearer ${currentToken}`
+                        }
                     });
-                } catch (verifyError) {
-                    logDebug('Token verification retry failed', {
-                        error: verifyError.message,
-                        stack: verifyError.stack
+
+                    if (refreshResponse.accessToken) {
+                        logDebug('Token refresh successful', {
+                            newTokenLength: refreshResponse.accessToken.length,
+                            newTokenStart: refreshResponse.accessToken.substring(0, 10),
+                            newTokenEnd: refreshResponse.accessToken.substring(refreshResponse.accessToken.length - 10)
+                        });
+
+                        // Update token and retry the original request
+                        setTokens(refreshResponse.accessToken);
+                        return makeApiRequest(endpoint, options);
+                    }
+                } catch (refreshError) {
+                    logDebug('Token refresh failed', {
+                        error: refreshError.message,
+                        stack: refreshError.stack
                     });
                 }
             }
@@ -301,8 +301,8 @@ async function makeApiRequest(endpoint, options = {}) {
             if (!isLoginRequest && currentToken) {
                 clearTokens();
                 
-                // Only redirect to login if we're not already there and this isn't a login/verify request
-                if (!isOnLoginPage && !isLoginRequest && !isVerifyRequest) {
+                // Only redirect to login if we're not already there and this isn't a login/verify/refresh request
+                if (!isOnLoginPage && !isLoginRequest && !isVerifyRequest && !isRefreshRequest) {
                     logDebug('Redirecting to login due to unauthorized access');
                     window.location.replace('/login.html');
                 }
@@ -337,7 +337,6 @@ async function makeApiRequest(endpoint, options = {}) {
             
             logDebug('Updating session after successful login', {
                 hasAccessToken: !!cleanToken,
-                hasRefreshToken: !!data.refreshToken,
                 hasUser: !!data.user,
                 tokenLength: cleanToken.length,
                 tokenStart: cleanToken.substring(0, 10),
@@ -346,11 +345,8 @@ async function makeApiRequest(endpoint, options = {}) {
                 cookies: document.cookie
             });
 
-            // If no refresh token is provided, use access token as refresh token
-            const refreshToken = data.refreshToken || cleanToken;
-            
-            // Store both access and refresh tokens
-            setTokens(cleanToken, refreshToken);
+            // Store access token and user data
+            setTokens(cleanToken);
             if (data.user) {
                 localStorage.setItem(CONFIG.TOKEN_KEYS.USER, JSON.stringify(data.user));
             }
@@ -358,8 +354,7 @@ async function makeApiRequest(endpoint, options = {}) {
             // Return the cleaned data
             return {
                 ...data,
-                accessToken: cleanToken,
-                refreshToken: refreshToken
+                accessToken: cleanToken
             };
         }
 
@@ -393,13 +388,14 @@ async function makeApiRequest(endpoint, options = {}) {
                 isOnLoginPage,
                 isLoginRequest,
                 isVerifyRequest,
+                isRefreshRequest,
                 url,
                 error: error.message,
                 stack: error.stack,
                 cookies: document.cookie
             });
             
-            if (!isOnLoginPage && !isLoginRequest && !isVerifyRequest) {
+            if (!isOnLoginPage && !isLoginRequest && !isVerifyRequest && !isRefreshRequest) {
                 clearTokens();
                 window.location.replace('/login.html');
             }
