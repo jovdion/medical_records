@@ -93,12 +93,23 @@ if (loginForm) {
                     tokenPreview: cleanToken.substring(0, 10) + '...'
                 });
                 
+                // Double check token format
+                if (!cleanToken.startsWith('ey')) {
+                    throw new Error('Format token tidak valid');
+                }
+                
                 // Ensure clean token is in localStorage before verification
                 if (!localStorage.getItem('token') || localStorage.getItem('token') !== cleanToken) {
                     localStorage.setItem('token', cleanToken);
                 }
                 
-                const verifyResult = await makeApiRequest(CONFIG.ENDPOINTS.VERIFY);
+                // Try to verify token
+                const verifyResult = await makeApiRequest(CONFIG.ENDPOINTS.VERIFY, {
+                    headers: {
+                        'Authorization': `Bearer ${cleanToken}`
+                    }
+                });
+                
                 debugLog('Token verified after login', verifyResult);
                 
                 // Delay redirect to show success message
@@ -112,6 +123,13 @@ if (loginForm) {
                     error: verifyErr,
                     tokenPreview: cleanToken.substring(0, 10) + '...'
                 });
+                
+                // Clear invalid session
+                localStorage.removeItem('token');
+                localStorage.removeItem('currentUser');
+                SESSION.token = null;
+                SESSION.user = null;
+                
                 throw new Error('Gagal memverifikasi sesi login. Silakan coba lagi.');
             }
 

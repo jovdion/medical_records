@@ -1,7 +1,7 @@
 // API Configuration
 const CONFIG = {
     // Change this based on environment
-    BASE_URL: window._env_?.API_URL || 'https://medical-records-be-913201672104.us-central1.run.app',
+    BASE_URL: window._env_?.API_URL || 'http://localhost:3000',
     API_TIMEOUT: 30000, // 30 seconds
     DEBUG: true, // Enable detailed logging
     
@@ -83,9 +83,10 @@ async function makeApiRequest(endpoint, options = {}) {
 
     // Add Authorization header if we have a token and it's not a login request
     if (currentToken && !isLoginRequest) {
-        headers['Authorization'] = `Bearer ${currentToken.trim()}`;
+        const cleanToken = currentToken.trim();
+        headers['Authorization'] = `Bearer ${cleanToken}`;
         logDebug('Adding Authorization header', {
-            token: currentToken.substring(0, 10) + '...',
+            token: cleanToken.substring(0, 10) + '...',
             headerValue: headers['Authorization']
         });
     }
@@ -96,7 +97,9 @@ async function makeApiRequest(endpoint, options = {}) {
         headers: {
             ...headers,
             ...(options.headers || {})
-        }
+        },
+        credentials: 'include',
+        mode: 'cors'
     };
 
     logDebug('Request Options', {
@@ -202,6 +205,12 @@ async function makeApiRequest(endpoint, options = {}) {
             if (data.user) {
                 localStorage.setItem('currentUser', JSON.stringify(data.user));
             }
+            
+            // Return the cleaned data
+            return {
+                ...data,
+                accessToken: cleanToken
+            };
         }
 
         return data;
