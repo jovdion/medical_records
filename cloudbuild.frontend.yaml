@@ -1,4 +1,16 @@
 steps:
+  # Verify frontend directory structure
+  - name: 'ubuntu'
+    dir: 'frontend'
+    args:
+      - 'bash'
+      - '-c'
+      - |
+        echo "Checking frontend directory structure..."
+        ls -la
+        echo "Creating js directory if not exists..."
+        mkdir -p js
+
   # Install dependencies
   - name: 'node:18'
     dir: 'frontend'
@@ -12,11 +24,32 @@ steps:
       - 'bash'
       - '-c'
       - |
+        echo "Creating env.js..."
         cat > js/env.js << 'EOF'
         window._env_ = {
           API_URL: 'https://medical-records-be-913201672104.us-central1.run.app',
         };
         EOF
+        echo "Verifying env.js..."
+        cat js/env.js
+
+  # Verify required files exist
+  - name: 'ubuntu'
+    dir: 'frontend'
+    args:
+      - 'bash'
+      - '-c'
+      - |
+        echo "Verifying required files..."
+        for file in index.html login.html; do
+          if [ ! -f "$file" ]; then
+            echo "Error: $file not found!"
+            exit 1
+          else
+            echo "$file exists"
+          fi
+        done
+        echo "All required files present"
 
   # Build Docker image
   - name: 'gcr.io/cloud-builders/docker'
