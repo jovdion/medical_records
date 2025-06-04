@@ -20,7 +20,8 @@ const CONFIG = {
     // Default Headers
     HEADERS: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json'
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
     },
 
     // Default Request Options
@@ -89,7 +90,7 @@ async function makeApiRequest(endpoint, options = {}) {
         const cleanToken = currentToken.trim();
         headers['Authorization'] = `Bearer ${cleanToken}`;
         logDebug('Adding Authorization header', {
-            token: cleanToken.substring(0, 10) + '...',
+            token: cleanToken.substring(0, 20) + '...',
             headerValue: headers['Authorization']
         });
     }
@@ -139,6 +140,31 @@ async function makeApiRequest(endpoint, options = {}) {
             url,
             cookies: document.cookie
         });
+
+        // Check if token is about to expire
+        const tokenExpiring = response.headers.get('X-Token-Expiring');
+        if (tokenExpiring === 'true') {
+            logDebug('Token is about to expire, attempting refresh');
+            try {
+                const refreshResponse = await fetch(joinUrl(CONFIG.BASE_URL, CONFIG.ENDPOINTS.VERIFY), {
+                    ...CONFIG.REQUEST_OPTIONS,
+                    headers: {
+                        ...CONFIG.HEADERS,
+                        'Authorization': `Bearer ${currentToken}`
+                    }
+                });
+                
+                if (refreshResponse.ok) {
+                    const refreshData = await refreshResponse.json();
+                    if (refreshData.accessToken) {
+                        localStorage.setItem('token', refreshData.accessToken);
+                        logDebug('Token refreshed successfully');
+                    }
+                }
+            } catch (refreshError) {
+                logDebug('Failed to refresh token', refreshError);
+            }
+        }
         
         let data;
         const contentType = response.headers.get('content-type');
@@ -217,8 +243,9 @@ async function makeApiRequest(endpoint, options = {}) {
             logDebug('Updating session after successful login', {
                 hasToken: !!cleanToken,
                 hasUser: !!data.user,
-                tokenPreview: cleanToken.substring(0, 10) + '...',
-                url
+                tokenPreview: cleanToken.substring(0, 20) + '...',
+                url,
+                cookies: document.cookie
             });
             localStorage.setItem('token', cleanToken);
             if (data.user) {
@@ -247,7 +274,8 @@ async function makeApiRequest(endpoint, options = {}) {
             logDebug('CORS or Network Error', {
                 url,
                 error: error.message,
-                origin: window.location.origin
+                origin: window.location.origin,
+                cookies: document.cookie
             });
             
             throw new Error('Tidak dapat terhubung ke server. Mohon coba lagi nanti.');
@@ -259,7 +287,8 @@ async function makeApiRequest(endpoint, options = {}) {
                 isOnLoginPage,
                 isLoginRequest,
                 isVerifyRequest,
-                url
+                url,
+                cookies: document.cookie
             });
             
             if (!isOnLoginPage && !isLoginRequest && !isVerifyRequest) {
@@ -271,7 +300,8 @@ async function makeApiRequest(endpoint, options = {}) {
         
         logDebug('API Error', {
             error,
-            url
+            url,
+            cookies: document.cookie
         });
         throw error;
     }

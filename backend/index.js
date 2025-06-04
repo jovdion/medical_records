@@ -28,18 +28,22 @@ app.use(express.json());
 app.use(cookieParser());
 
 // CORS configuration
+const allowedOrigins = [
+    'https://medical-records-fe-913201672104.us-central1.run.app',
+    'https://medical-records-be-913201672104.us-central1.run.app',
+    'http://localhost:5000',
+    'http://localhost:3000',
+    undefined // Allow requests with no origin (like mobile apps or curl requests)
+];
+
+// Log environment
+console.log('Environment:', {
+    NODE_ENV: process.env.NODE_ENV,
+    allowedOrigins
+});
+
 const corsOptions = {
-    credentials: true,
     origin: function (origin, callback) {
-        const allowedOrigins = [
-            'https://medical-records-fe-913201672104.us-central1.run.app',
-            'https://medical-records-be-913201672104.us-central1.run.app',
-            'http://localhost:5000',
-            'http://localhost:3000',
-            undefined // Allow requests with no origin (like mobile apps or curl requests)
-        ];
-        
-        // Log the origin for debugging
         console.log('Request origin:', origin);
         
         if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
@@ -49,9 +53,10 @@ const corsOptions = {
             callback(new Error('Not allowed by CORS'));
         }
     },
+    credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
-    exposedHeaders: ['Set-Cookie'],
+    exposedHeaders: ['Set-Cookie', 'X-Token-Expiring'],
     optionsSuccessStatus: 200,
     preflightContinue: false,
     maxAge: 86400 // 24 hours
@@ -65,7 +70,8 @@ app.use((err, req, res, next) => {
         console.error('CORS Error:', {
             origin: req.headers.origin,
             method: req.method,
-            path: req.path
+            path: req.path,
+            headers: req.headers
         });
         return res.status(403).json({
             message: 'CORS not allowed',
@@ -75,10 +81,31 @@ app.use((err, req, res, next) => {
     next(err);
 });
 
+// Add request logging middleware
+app.use((req, res, next) => {
+    console.log('Request:', {
+        method: req.method,
+        path: req.path,
+        origin: req.headers.origin,
+        cookies: req.cookies,
+        headers: {
+            ...req.headers,
+            authorization: req.headers.authorization ? 
+                req.headers.authorization.substring(0, 20) + '...' : 
+                'none'
+        }
+    });
+    next();
+});
+
 // Add error logging middleware
 app.use((err, req, res, next) => {
-    console.error('Error details:', err);
-    console.error('Stack trace:', err.stack);
+    console.error('Error details:', {
+        error: err.message,
+        stack: err.stack,
+        path: req.path,
+        method: req.method
+    });
     res.status(500).json({ 
         message: "Internal Server Error",
         error: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
@@ -94,21 +121,22 @@ app.use('/api', DashboardRoute);
 
 // Health check endpoint
 app.get("/health", async (req, res) => {
-  try {
-    await db.authenticate();
-    res.json({ 
-      status: 'OK', 
-      database: 'Connected',
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Health check error:', error);
-    res.status(500).json({ 
-      status: 'Error', 
-      database: 'Disconnected',
-      error: error.message 
-    });
-  }
+    try {
+        await db.authenticate();
+        res.json({ 
+            status: 'OK', 
+            database: 'Connected',
+            timestamp: new Date().toISOString(),
+            env: process.env.NODE_ENV
+        });
+    } catch (error) {
+        console.error('Health check error:', error);
+        res.status(500).json({ 
+            status: 'Error', 
+            database: 'Disconnected',
+            error: error.message 
+        });
+    }
 });
 
 // Serve static frontend files
