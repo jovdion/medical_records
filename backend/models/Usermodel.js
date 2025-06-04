@@ -8,25 +8,25 @@ const User = db.define('User', {
         autoIncrement: true
     },
     username: {
-        type: DataTypes.STRING,
+        type: DataTypes.STRING(50),
         allowNull: false,
-        unique: true,
+        unique: 'username_unique',  // Named unique constraint
         validate: {
             notEmpty: true,
             len: [2, 50]
         }
     },
     email: {
-        type: DataTypes.STRING,
+        type: DataTypes.STRING(100),
         allowNull: false,
-        unique: true,
+        unique: 'email_unique',  // Named unique constraint
         validate: {
             isEmail: true,
             notEmpty: true
         }
     },
     password: {
-        type: DataTypes.STRING,
+        type: DataTypes.STRING(255),
         allowNull: false,
         validate: {
             notEmpty: true,
@@ -47,16 +47,8 @@ const User = db.define('User', {
     timestamps: true,    // This will use created_at and updated_at
     createdAt: 'created_at', // Match the column names in setup.sql
     updatedAt: 'updated_at',
-    indexes: [
-        {
-            unique: true,
-            fields: ['email']
-        },
-        {
-            unique: true,
-            fields: ['username']
-        }
-    ]
+    // Remove separate index definitions since we're using unique constraints in the fields
+    indexes: []
 });
 
 // Export the User model

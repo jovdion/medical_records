@@ -10,7 +10,7 @@ const Doctor = db.define('doctors', {
         autoIncrement: true
     },
     name: {
-        type: DataTypes.STRING,
+        type: DataTypes.STRING(100),
         allowNull: false,
         validate: {
             notEmpty: {
@@ -23,7 +23,7 @@ const Doctor = db.define('doctors', {
         }
     },
     specialty: {
-        type: DataTypes.STRING,
+        type: DataTypes.STRING(100),
         allowNull: false,
         validate: {
             notEmpty: {
@@ -36,7 +36,7 @@ const Doctor = db.define('doctors', {
         }
     },
     phone: {
-        type: DataTypes.STRING,
+        type: DataTypes.STRING(20),
         allowNull: true,
         validate: {
             is: {
@@ -50,7 +50,7 @@ const Doctor = db.define('doctors', {
         }
     },
     email: {
-        type: DataTypes.STRING,
+        type: DataTypes.STRING(100),
         allowNull: true,
         validate: {
             isEmail: {

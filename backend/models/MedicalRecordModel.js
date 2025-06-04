@@ -82,13 +82,14 @@ const MedicalRecord = db.define('medical_records', {
     updatedAt: 'updated_at',
     indexes: [
         {
-            fields: ['patient_name']
+            // Composite index for common queries
+            fields: ['patient_id', 'visit_date'],
+            name: 'idx_patient_visit'
         },
         {
-            fields: ['visit_date']
-        },
-        {
-            fields: ['diagnosis']
+            // Composite index for doctor's records
+            fields: ['doctor_id', 'visit_date'],
+            name: 'idx_doctor_visit'
         }
     ]
 });

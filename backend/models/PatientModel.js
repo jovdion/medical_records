@@ -10,7 +10,7 @@ const Patient = db.define('patients', {
         autoIncrement: true
     },
     name: {
-        type: DataTypes.STRING,
+        type: DataTypes.STRING(100),
         allowNull: false,
         validate: {
             notNull: {
@@ -63,7 +63,7 @@ const Patient = db.define('patients', {
         allowNull: true
     },
     phone: {
-        type: DataTypes.STRING,
+        type: DataTypes.STRING(20),
         allowNull: true
     }
 }, {
