@@ -7,14 +7,19 @@
     "node_modules"
   ],
   "trailingSlash": false,
-  "cleanUrls": true,
+  "cleanUrls": false,
   "rewrites": [
     { "source": "/", "destination": "/index.html" },
     { "source": "/login", "destination": "/login.html" },
+    { "source": "/register", "destination": "/register.html" },
     { "source": "/dashboard", "destination": "/dashboard.html" },
     { "source": "/patients", "destination": "/patients.html" },
     { "source": "/doctors", "destination": "/doctors.html" },
     { "source": "/records", "destination": "/records.html" }
+  ],
+  "redirects": [
+    { "source": "/index.html", "destination": "/" },
+    { "source": "/", "destination": "/login.html", "type": 302 }
   ],
   "headers": [
     {

@@ -368,7 +368,7 @@
             <div class="header">
                 <div class="logo">🏥</div>
                 <h1>Register</h1>
-                <p class="subtitle">Buat akun baru untuk Sistem Rekam Medis</p>
+                <p class="subtitle">Sistem Manajemen Rekam Medis</p>
             </div>
 
             <div id="statusMessage"></div>
@@ -377,45 +377,50 @@
                 <div class="form-group">
                     <label for="username">Username</label>
                     <div class="input-container">
-                        <input type="text" id="username" name="username" required
-                               placeholder="Masukkan username Anda">
+                        <input type="text" id="username" name="username" placeholder="Masukkan username Anda" required
+                               autocomplete="username">
+                        <span class="input-icon">👤</span>
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label for="email">Email</label>
                     <div class="input-container">
-                        <input type="email" id="email" name="email" required
-                               placeholder="Masukkan email Anda">
+                        <input type="email" id="email" name="email" placeholder="Masukkan email Anda" required
+                               autocomplete="email">
+                        <span class="input-icon">✉️</span>
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label for="password">Password</label>
                     <div class="input-container">
-                        <input type="password" id="password" name="password" required
-                               placeholder="Masukkan password Anda">
+                        <input type="password" id="password" name="password" placeholder="Masukkan password Anda" required
+                               autocomplete="new-password">
+                        <span class="input-icon">🔒</span>
                     </div>
                     <div class="password-strength">
                         <div class="strength-meter"></div>
+                        <span id="strengthMessage" class="strength-text"></span>
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label for="confPassword">Konfirmasi Password</label>
                     <div class="input-container">
-                        <input type="password" id="confPassword" name="confPassword" required
-                               placeholder="Masukkan ulang password Anda">
+                        <input type="password" id="confPassword" name="confPassword" placeholder="Konfirmasi password Anda" required
+                               autocomplete="new-password">
+                        <span class="input-icon">🔒</span>
                     </div>
                 </div>
 
-                <button type="submit" class="register-btn" id="registerButton">
-                    <span id="registerSpinner" class="loading-spinner"></span>
+                <button type="submit" class="btn btn-primary" id="registerButton">
+                    <span id="registerSpinner" class="loading-spinner" style="display: none;"></span>
                     <span id="registerText">Daftar</span>
                 </button>
 
-                <div class="login-link">
-                    Sudah punya akun? <a href="login.html">Login di sini</a>
+                <div class="login-link" style="text-align: center; margin-top: 16px;">
+                    <a href="login.html" style="color: white; text-decoration: none;">Sudah punya akun? Login di sini</a>
                 </div>
             </form>
         </div>

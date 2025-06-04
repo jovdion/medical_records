@@ -78,7 +78,13 @@ function safeRedirect(url) {
     
     SESSION.redirecting = true;
     debugLog('Redirecting to:', url);
-    window.location.replace(url);
+    
+    // Use replace for login/logout redirects, use assign for others
+    if (url.includes('login.html') || currentPath.includes('login.html')) {
+        window.location.replace(url);
+    } else {
+        window.location.assign(url);
+    }
 }
 
 // Check authentication status

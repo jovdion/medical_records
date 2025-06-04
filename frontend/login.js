@@ -9,16 +9,21 @@ if (window.location.pathname.toLowerCase().includes('login.html')) {
     
     if (token && currentUser) {
         debugLog('Found existing session, verifying token...');
-        makeApiRequest(CONFIG.ENDPOINTS.VERIFY)
-            .then(() => {
-                debugLog('Token valid, redirecting to dashboard');
-                safeRedirect('dashboard.html');
-            })
-            .catch((err) => {
-                debugLog('Invalid token, clearing session:', err);
-                localStorage.removeItem('token');
-                localStorage.removeItem('currentUser');
-            });
+        // Prevent multiple redirects
+        if (!SESSION.redirecting) {
+            makeApiRequest(CONFIG.ENDPOINTS.VERIFY)
+                .then(() => {
+                    debugLog('Token valid, redirecting to dashboard');
+                    safeRedirect('dashboard.html');
+                })
+                .catch((err) => {
+                    debugLog('Invalid token, clearing session:', err);
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('currentUser');
+                    SESSION.token = null;
+                    SESSION.user = null;
+                });
+        }
     }
 }
 
@@ -97,6 +102,8 @@ if (loginForm) {
             // Clear any invalid session
             localStorage.removeItem('token');
             localStorage.removeItem('currentUser');
+            SESSION.token = null;
+            SESSION.user = null;
         } finally {
             // Re-enable form after a delay
             setTimeout(() => {

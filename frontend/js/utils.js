@@ -43,6 +43,7 @@ async function makeApiRequest(endpoint, options = {}) {
 
     // Don't redirect to login page if we're already there
     const isLoginRequest = endpoint === CONFIG.ENDPOINTS.LOGIN;
+    const isVerifyRequest = endpoint === CONFIG.ENDPOINTS.VERIFY;
     const isOnLoginPage = window.location.pathname.toLowerCase().includes('login.html');
 
     const requestOptions = {
@@ -66,21 +67,21 @@ async function makeApiRequest(endpoint, options = {}) {
         
         clearTimeout(timeoutId);
         
+        const data = await response.json();
+        
         if (response.status === 401) {
             // Handle unauthorized access
             localStorage.removeItem('token');
             localStorage.removeItem('currentUser');
             
-            // Only redirect to login if we're not already there and this isn't a login request
-            if (!isOnLoginPage && !isLoginRequest) {
+            // Only redirect to login if we're not already there and this isn't a login/verify request
+            if (!isOnLoginPage && !isLoginRequest && !isVerifyRequest) {
                 window.location.replace('/login.html');
             }
             
-            throw new Error('Unauthorized access');
+            throw new Error(data.message || 'Unauthorized access');
         }
 
-        const data = await response.json();
-        
         if (!response.ok) {
             throw new Error(data.message || `HTTP error! status: ${response.status}`);
         }
@@ -90,6 +91,16 @@ async function makeApiRequest(endpoint, options = {}) {
         if (error.name === 'AbortError') {
             throw new Error('Request timeout');
         }
+        
+        // If it's a network error and we're not on login page, redirect to login
+        if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+            if (!isOnLoginPage && !isLoginRequest && !isVerifyRequest) {
+                localStorage.removeItem('token');
+                localStorage.removeItem('currentUser');
+                window.location.replace('/login.html');
+            }
+        }
+        
         console.error('API Request failed:', error);
         throw error;
     }
