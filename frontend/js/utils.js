@@ -73,6 +73,9 @@ async function makeApiRequest(endpoint, options = {}) {
         currentPath,
         isOnLoginPage,
         hasToken: !!token,
+        tokenLength: token ? token.length : 0,
+        tokenStart: token ? token.substring(0, 10) : null,
+        tokenEnd: token ? token.substring(token.length - 10) : null,
         cookies: document.cookie
     });
 
@@ -91,12 +94,18 @@ async function makeApiRequest(endpoint, options = {}) {
         if (cleanToken && cleanToken.startsWith('ey')) {
             headers['Authorization'] = `Bearer ${cleanToken}`;
             logDebug('Adding Authorization header', {
-                token: cleanToken.substring(0, 20) + '...',
-                headerValue: headers['Authorization']
+                tokenLength: cleanToken.length,
+                tokenStart: cleanToken.substring(0, 10),
+                tokenEnd: cleanToken.substring(cleanToken.length - 10),
+                headerValue: `Bearer ${cleanToken.substring(0, 10)}...${cleanToken.substring(cleanToken.length - 10)}`,
+                cookies: document.cookie
             });
         } else {
             logDebug('Invalid token format', {
-                tokenPreview: cleanToken ? cleanToken.substring(0, 20) + '...' : 'none'
+                tokenLength: cleanToken ? cleanToken.length : 0,
+                tokenStart: cleanToken ? cleanToken.substring(0, 10) : null,
+                tokenEnd: cleanToken ? cleanToken.substring(cleanToken.length - 10) : null,
+                isValidJWT: cleanToken ? cleanToken.split('.').length === 3 : false
             });
             if (!isLoginRequest) {
                 localStorage.removeItem('token');
@@ -120,7 +129,12 @@ async function makeApiRequest(endpoint, options = {}) {
 
     logDebug('Request Options', {
         method: requestOptions.method,
-        headers: requestOptions.headers,
+        headers: {
+            ...requestOptions.headers,
+            Authorization: requestOptions.headers.Authorization ? 
+                `${requestOptions.headers.Authorization.substring(0, 20)}...${requestOptions.headers.Authorization.substring(requestOptions.headers.Authorization.length - 20)}` : 
+                'none'
+        },
         credentials: requestOptions.credentials,
         mode: requestOptions.mode,
         withCredentials: requestOptions.withCredentials,
@@ -134,10 +148,16 @@ async function makeApiRequest(endpoint, options = {}) {
         logDebug('Fetch Request', {
             url,
             method: requestOptions.method || 'GET',
-            headers: requestOptions.headers,
+            headers: {
+                ...requestOptions.headers,
+                Authorization: requestOptions.headers.Authorization ? 
+                    `${requestOptions.headers.Authorization.substring(0, 20)}...${requestOptions.headers.Authorization.substring(requestOptions.headers.Authorization.length - 20)}` : 
+                    'none'
+            },
             credentials: requestOptions.credentials,
             mode: requestOptions.mode,
-            withCredentials: requestOptions.withCredentials
+            withCredentials: requestOptions.withCredentials,
+            cookies: document.cookie
         });
         
         const response = await fetch(url, {
@@ -152,13 +172,20 @@ async function makeApiRequest(endpoint, options = {}) {
             statusText: response.statusText,
             headers: Object.fromEntries(response.headers.entries()),
             url,
-            cookies: document.cookie
+            cookies: document.cookie,
+            responseType: response.type,
+            responseMode: response.mode,
+            responseCredentials: response.credentials
         });
 
         // Check if token is about to expire
         const tokenExpiring = response.headers.get('X-Token-Expiring');
         if (tokenExpiring === 'true' && currentToken) {
-            logDebug('Token is about to expire, attempting refresh');
+            logDebug('Token is about to expire, attempting refresh', {
+                currentTokenLength: currentToken.length,
+                currentTokenStart: currentToken.substring(0, 10),
+                currentTokenEnd: currentToken.substring(currentToken.length - 10)
+            });
             try {
                 const refreshResponse = await fetch(joinUrl(CONFIG.BASE_URL, CONFIG.ENDPOINTS.VERIFY), {
                     ...CONFIG.REQUEST_OPTIONS,
@@ -168,51 +195,57 @@ async function makeApiRequest(endpoint, options = {}) {
                     }
                 });
                 
+                logDebug('Token refresh response', {
+                    status: refreshResponse.status,
+                    statusText: refreshResponse.statusText,
+                    headers: Object.fromEntries(refreshResponse.headers.entries())
+                });
+                
                 if (refreshResponse.ok) {
                     const refreshData = await refreshResponse.json();
                     if (refreshData.accessToken) {
                         const newToken = refreshData.accessToken.trim();
                         if (newToken.startsWith('ey')) {
                             localStorage.setItem('token', newToken);
-                            logDebug('Token refreshed successfully');
+                            logDebug('Token refreshed successfully', {
+                                newTokenLength: newToken.length,
+                                newTokenStart: newToken.substring(0, 10),
+                                newTokenEnd: newToken.substring(newToken.length - 10)
+                            });
                         }
                     }
                 }
             } catch (refreshError) {
-                logDebug('Failed to refresh token', refreshError);
+                logDebug('Failed to refresh token', {
+                    error: refreshError.message,
+                    stack: refreshError.stack
+                });
             }
         }
         
         let data;
         const contentType = response.headers.get('content-type');
+        
         if (contentType && contentType.includes('application/json')) {
             data = await response.json();
             logDebug('Response Data', {
-                ...data,
-                url,
-                status: response.status
+                hasData: !!data,
+                dataKeys: data ? Object.keys(data) : [],
+                status: response.status,
+                url
             });
         } else {
             const text = await response.text();
-            logDebug('Response Text', {
-                text,
-                url,
-                status: response.status
+            logDebug('Non-JSON Response', {
+                contentType,
+                textLength: text.length,
+                status: response.status,
+                url
             });
             try {
                 data = JSON.parse(text);
-                logDebug('Parsed JSON Data', {
-                    ...data,
-                    url,
-                    status: response.status
-                });
             } catch (e) {
-                data = { message: text };
-                logDebug('Non-JSON Response', {
-                    data,
-                    url,
-                    status: response.status
-                });
+                data = { msg: text };
             }
         }
         
@@ -222,12 +255,16 @@ async function makeApiRequest(endpoint, options = {}) {
                 isLoginRequest,
                 isVerifyRequest,
                 hasToken: !!currentToken,
+                tokenLength: currentToken ? currentToken.length : 0,
+                tokenStart: currentToken ? currentToken.substring(0, 10) : null,
+                tokenEnd: currentToken ? currentToken.substring(currentToken.length - 10) : null,
                 authHeader: requestOptions.headers.Authorization ? 
-                    requestOptions.headers.Authorization.substring(0, 20) + '...' : 
+                    `${requestOptions.headers.Authorization.substring(0, 20)}...${requestOptions.headers.Authorization.substring(requestOptions.headers.Authorization.length - 20)}` : 
                     'none',
                 url,
                 status: response.status,
-                data
+                responseData: data,
+                cookies: document.cookie
             });
             
             // Only clear session if it's not a login request and we have a token
@@ -248,8 +285,10 @@ async function makeApiRequest(endpoint, options = {}) {
         if (!response.ok) {
             logDebug('Response Error', {
                 status: response.status,
+                statusText: response.statusText,
                 data,
-                url
+                url,
+                headers: Object.fromEntries(response.headers.entries())
             });
             throw new Error(data.msg || `HTTP error! status: ${response.status}`);
         }
@@ -258,13 +297,21 @@ async function makeApiRequest(endpoint, options = {}) {
         if (isLoginRequest && data.accessToken) {
             const cleanToken = data.accessToken.trim();
             if (!cleanToken.startsWith('ey')) {
+                logDebug('Invalid token format from server', {
+                    tokenLength: cleanToken.length,
+                    tokenStart: cleanToken.substring(0, 10),
+                    tokenEnd: cleanToken.substring(cleanToken.length - 10),
+                    isValidJWT: cleanToken.split('.').length === 3
+                });
                 throw new Error('Invalid token format received from server');
             }
             
             logDebug('Updating session after successful login', {
                 hasToken: !!cleanToken,
                 hasUser: !!data.user,
-                tokenPreview: cleanToken.substring(0, 20) + '...',
+                tokenLength: cleanToken.length,
+                tokenStart: cleanToken.substring(0, 10),
+                tokenEnd: cleanToken.substring(cleanToken.length - 10),
                 url,
                 cookies: document.cookie
             });
@@ -284,8 +331,9 @@ async function makeApiRequest(endpoint, options = {}) {
     } catch (error) {
         if (error.name === 'AbortError') {
             logDebug('Timeout Error', {
-                error,
-                url
+                error: error.message,
+                url,
+                timeout: CONFIG.API_TIMEOUT
             });
             throw new Error('Request timeout');
         }
@@ -296,7 +344,8 @@ async function makeApiRequest(endpoint, options = {}) {
                 url,
                 error: error.message,
                 origin: window.location.origin,
-                cookies: document.cookie
+                cookies: document.cookie,
+                headers: requestOptions.headers
             });
             
             throw new Error('Tidak dapat terhubung ke server. Mohon coba lagi nanti.');
@@ -309,6 +358,8 @@ async function makeApiRequest(endpoint, options = {}) {
                 isLoginRequest,
                 isVerifyRequest,
                 url,
+                error: error.message,
+                stack: error.stack,
                 cookies: document.cookie
             });
             
@@ -320,9 +371,11 @@ async function makeApiRequest(endpoint, options = {}) {
         }
         
         logDebug('API Error', {
-            error,
+            error: error.message,
+            stack: error.stack,
             url,
-            cookies: document.cookie
+            cookies: document.cookie,
+            requestHeaders: requestOptions.headers
         });
         throw error;
     }
