@@ -29,6 +29,13 @@ const CONFIG = {
         mode: 'cors',
         credentials: 'include',
         withCredentials: true
+    },
+
+    // Token Storage Keys
+    TOKEN_KEYS: {
+        ACCESS_TOKEN: 'access_token',
+        REFRESH_TOKEN: 'refresh_token',
+        USER: 'currentUser'
     }
 };
 
@@ -53,10 +60,33 @@ function logDebug(type, ...args) {
     }
 }
 
+// Token management functions
+function getTokens() {
+    return {
+        accessToken: localStorage.getItem(CONFIG.TOKEN_KEYS.ACCESS_TOKEN),
+        refreshToken: localStorage.getItem(CONFIG.TOKEN_KEYS.REFRESH_TOKEN)
+    };
+}
+
+function setTokens(accessToken, refreshToken) {
+    if (accessToken) {
+        localStorage.setItem(CONFIG.TOKEN_KEYS.ACCESS_TOKEN, accessToken);
+    }
+    if (refreshToken) {
+        localStorage.setItem(CONFIG.TOKEN_KEYS.REFRESH_TOKEN, refreshToken);
+    }
+}
+
+function clearTokens() {
+    localStorage.removeItem(CONFIG.TOKEN_KEYS.ACCESS_TOKEN);
+    localStorage.removeItem(CONFIG.TOKEN_KEYS.REFRESH_TOKEN);
+    localStorage.removeItem(CONFIG.TOKEN_KEYS.USER);
+}
+
 // Helper function for making API requests
 async function makeApiRequest(endpoint, options = {}) {
     const url = joinUrl(CONFIG.BASE_URL, endpoint);
-    const token = localStorage.getItem('token');
+    const { accessToken, refreshToken } = getTokens();
 
     // Don't redirect to login page if we're already there
     const isLoginRequest = endpoint === CONFIG.ENDPOINTS.LOGIN;
@@ -72,15 +102,16 @@ async function makeApiRequest(endpoint, options = {}) {
         isVerifyRequest,
         currentPath,
         isOnLoginPage,
-        hasToken: !!token,
-        tokenLength: token ? token.length : 0,
-        tokenStart: token ? token.substring(0, 10) : null,
-        tokenEnd: token ? token.substring(token.length - 10) : null,
+        hasAccessToken: !!accessToken,
+        hasRefreshToken: !!refreshToken,
+        accessTokenLength: accessToken ? accessToken.length : 0,
+        accessTokenStart: accessToken ? accessToken.substring(0, 10) : null,
+        accessTokenEnd: accessToken ? accessToken.substring(accessToken.length - 10) : null,
         cookies: document.cookie
     });
 
-    // For verify requests, ensure we're using the latest token
-    const currentToken = isVerifyRequest ? localStorage.getItem('token') : token;
+    // For verify requests, ensure we're using the latest tokens
+    const currentToken = isVerifyRequest ? getTokens().accessToken : accessToken;
 
     // Prepare headers
     const headers = {
@@ -98,6 +129,7 @@ async function makeApiRequest(endpoint, options = {}) {
                 tokenStart: cleanToken.substring(0, 10),
                 tokenEnd: cleanToken.substring(cleanToken.length - 10),
                 headerValue: `Bearer ${cleanToken.substring(0, 10)}...${cleanToken.substring(cleanToken.length - 10)}`,
+                hasRefreshToken: !!refreshToken,
                 cookies: document.cookie
             });
         } else {
@@ -105,11 +137,11 @@ async function makeApiRequest(endpoint, options = {}) {
                 tokenLength: cleanToken ? cleanToken.length : 0,
                 tokenStart: cleanToken ? cleanToken.substring(0, 10) : null,
                 tokenEnd: cleanToken ? cleanToken.substring(cleanToken.length - 10) : null,
-                isValidJWT: cleanToken ? cleanToken.split('.').length === 3 : false
+                isValidJWT: cleanToken ? cleanToken.split('.').length === 3 : false,
+                hasRefreshToken: !!refreshToken
             });
             if (!isLoginRequest) {
-                localStorage.removeItem('token');
-                localStorage.removeItem('currentUser');
+                clearTokens();
                 if (!isOnLoginPage) {
                     window.location.replace('/login.html');
                 }
@@ -178,51 +210,6 @@ async function makeApiRequest(endpoint, options = {}) {
             responseCredentials: response.credentials
         });
 
-        // Check if token is about to expire
-        const tokenExpiring = response.headers.get('X-Token-Expiring');
-        if (tokenExpiring === 'true' && currentToken) {
-            logDebug('Token is about to expire, attempting refresh', {
-                currentTokenLength: currentToken.length,
-                currentTokenStart: currentToken.substring(0, 10),
-                currentTokenEnd: currentToken.substring(currentToken.length - 10)
-            });
-            try {
-                const refreshResponse = await fetch(joinUrl(CONFIG.BASE_URL, CONFIG.ENDPOINTS.VERIFY), {
-                    ...CONFIG.REQUEST_OPTIONS,
-                    headers: {
-                        ...CONFIG.HEADERS,
-                        'Authorization': `Bearer ${currentToken.trim()}`
-                    }
-                });
-                
-                logDebug('Token refresh response', {
-                    status: refreshResponse.status,
-                    statusText: refreshResponse.statusText,
-                    headers: Object.fromEntries(refreshResponse.headers.entries())
-                });
-                
-                if (refreshResponse.ok) {
-                    const refreshData = await refreshResponse.json();
-                    if (refreshData.accessToken) {
-                        const newToken = refreshData.accessToken.trim();
-                        if (newToken.startsWith('ey')) {
-                            localStorage.setItem('token', newToken);
-                            logDebug('Token refreshed successfully', {
-                                newTokenLength: newToken.length,
-                                newTokenStart: newToken.substring(0, 10),
-                                newTokenEnd: newToken.substring(newToken.length - 10)
-                            });
-                        }
-                    }
-                }
-            } catch (refreshError) {
-                logDebug('Failed to refresh token', {
-                    error: refreshError.message,
-                    stack: refreshError.stack
-                });
-            }
-        }
-        
         let data;
         const contentType = response.headers.get('content-type');
         
@@ -254,7 +241,8 @@ async function makeApiRequest(endpoint, options = {}) {
                 isOnLoginPage,
                 isLoginRequest,
                 isVerifyRequest,
-                hasToken: !!currentToken,
+                hasAccessToken: !!currentToken,
+                hasRefreshToken: !!refreshToken,
                 tokenLength: currentToken ? currentToken.length : 0,
                 tokenStart: currentToken ? currentToken.substring(0, 10) : null,
                 tokenEnd: currentToken ? currentToken.substring(currentToken.length - 10) : null,
@@ -266,11 +254,52 @@ async function makeApiRequest(endpoint, options = {}) {
                 responseData: data,
                 cookies: document.cookie
             });
+
+            // Try to refresh the token if we have a refresh token
+            if (!isLoginRequest && !isVerifyRequest && refreshToken) {
+                try {
+                    logDebug('Attempting token refresh', {
+                        hasRefreshToken: !!refreshToken,
+                        refreshTokenLength: refreshToken.length,
+                        refreshTokenStart: refreshToken.substring(0, 10),
+                        refreshTokenEnd: refreshToken.substring(refreshToken.length - 10)
+                    });
+
+                    const refreshResponse = await fetch(joinUrl(CONFIG.BASE_URL, CONFIG.ENDPOINTS.VERIFY), {
+                        ...CONFIG.REQUEST_OPTIONS,
+                        method: 'POST',
+                        headers: {
+                            ...CONFIG.HEADERS,
+                            'Authorization': `Bearer ${refreshToken.trim()}`
+                        },
+                        body: JSON.stringify({ refresh: true })
+                    });
+
+                    if (refreshResponse.ok) {
+                        const refreshData = await refreshResponse.json();
+                        if (refreshData.accessToken) {
+                            logDebug('Token refresh successful', {
+                                newTokenLength: refreshData.accessToken.length,
+                                newTokenStart: refreshData.accessToken.substring(0, 10),
+                                newTokenEnd: refreshData.accessToken.substring(refreshData.accessToken.length - 10)
+                            });
+
+                            // Update tokens and retry the original request
+                            setTokens(refreshData.accessToken, refreshData.refreshToken || refreshToken);
+                            return makeApiRequest(endpoint, options);
+                        }
+                    }
+                } catch (refreshError) {
+                    logDebug('Token refresh failed', {
+                        error: refreshError.message,
+                        stack: refreshError.stack
+                    });
+                }
+            }
             
             // Only clear session if it's not a login request and we have a token
             if (!isLoginRequest && currentToken) {
-                localStorage.removeItem('token');
-                localStorage.removeItem('currentUser');
+                clearTokens();
                 
                 // Only redirect to login if we're not already there and this isn't a login/verify request
                 if (!isOnLoginPage && !isLoginRequest && !isVerifyRequest) {
@@ -307,7 +336,8 @@ async function makeApiRequest(endpoint, options = {}) {
             }
             
             logDebug('Updating session after successful login', {
-                hasToken: !!cleanToken,
+                hasAccessToken: !!cleanToken,
+                hasRefreshToken: !!data.refreshToken,
                 hasUser: !!data.user,
                 tokenLength: cleanToken.length,
                 tokenStart: cleanToken.substring(0, 10),
@@ -315,9 +345,11 @@ async function makeApiRequest(endpoint, options = {}) {
                 url,
                 cookies: document.cookie
             });
-            localStorage.setItem('token', cleanToken);
+
+            // Store both access and refresh tokens
+            setTokens(cleanToken, data.refreshToken);
             if (data.user) {
-                localStorage.setItem('currentUser', JSON.stringify(data.user));
+                localStorage.setItem(CONFIG.TOKEN_KEYS.USER, JSON.stringify(data.user));
             }
             
             // Return the cleaned data
@@ -364,8 +396,7 @@ async function makeApiRequest(endpoint, options = {}) {
             });
             
             if (!isOnLoginPage && !isLoginRequest && !isVerifyRequest) {
-                localStorage.removeItem('token');
-                localStorage.removeItem('currentUser');
+                clearTokens();
                 window.location.replace('/login.html');
             }
         }
