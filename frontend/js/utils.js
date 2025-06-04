@@ -3,6 +3,7 @@ const CONFIG = {
     // Change this based on environment
     BASE_URL: window._env_?.API_URL || 'https://medical-records-be-913201672104.us-central1.run.app',
     API_TIMEOUT: 30000, // 30 seconds
+    DEBUG: true, // Enable detailed logging
     
     // API Endpoints
     ENDPOINTS: {
@@ -36,6 +37,15 @@ function joinUrl(base, path) {
     return base + path;
 }
 
+// Debug logging function
+function logDebug(type, ...args) {
+    if (CONFIG.DEBUG) {
+        const timestamp = new Date().toISOString();
+        const prefix = `[${type}] ${timestamp}`;
+        console.log(prefix, ...args);
+    }
+}
+
 // Helper function for making API requests
 async function makeApiRequest(endpoint, options = {}) {
     const url = joinUrl(CONFIG.BASE_URL, endpoint);
@@ -45,6 +55,16 @@ async function makeApiRequest(endpoint, options = {}) {
     const isLoginRequest = endpoint === CONFIG.ENDPOINTS.LOGIN;
     const isVerifyRequest = endpoint === CONFIG.ENDPOINTS.VERIFY;
     const isOnLoginPage = window.location.pathname.toLowerCase().includes('login.html');
+
+    logDebug('API Request', {
+        endpoint,
+        url,
+        method: options.method || 'GET',
+        isLoginRequest,
+        isVerifyRequest,
+        isOnLoginPage,
+        hasToken: !!token
+    });
 
     const requestOptions = {
         ...CONFIG.REQUEST_OPTIONS,
@@ -62,7 +82,7 @@ async function makeApiRequest(endpoint, options = {}) {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), CONFIG.API_TIMEOUT);
         
-        console.log('Making API request:', {
+        logDebug('Fetch Request', {
             url,
             method: requestOptions.method || 'GET',
             headers: requestOptions.headers
@@ -75,26 +95,43 @@ async function makeApiRequest(endpoint, options = {}) {
         
         clearTimeout(timeoutId);
         
+        logDebug('API Response', {
+            status: response.status,
+            statusText: response.statusText,
+            headers: Object.fromEntries(response.headers.entries())
+        });
+        
         let data;
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
             data = await response.json();
+            logDebug('Response Data', data);
         } else {
             const text = await response.text();
+            logDebug('Response Text', text);
             try {
                 data = JSON.parse(text);
+                logDebug('Parsed JSON Data', data);
             } catch (e) {
                 data = { message: text };
+                logDebug('Non-JSON Response', data);
             }
         }
         
         if (response.status === 401) {
+            logDebug('Unauthorized', {
+                isOnLoginPage,
+                isLoginRequest,
+                isVerifyRequest
+            });
+            
             // Handle unauthorized access
             localStorage.removeItem('token');
             localStorage.removeItem('currentUser');
             
             // Only redirect to login if we're not already there and this isn't a login/verify request
             if (!isOnLoginPage && !isLoginRequest && !isVerifyRequest) {
+                logDebug('Redirecting to login due to unauthorized access');
                 window.location.replace('/login.html');
             }
             
@@ -102,18 +139,23 @@ async function makeApiRequest(endpoint, options = {}) {
         }
 
         if (!response.ok) {
+            logDebug('Response Error', {
+                status: response.status,
+                data
+            });
             throw new Error(data.message || `HTTP error! status: ${response.status}`);
         }
 
         return data;
     } catch (error) {
         if (error.name === 'AbortError') {
+            logDebug('Timeout Error', error);
             throw new Error('Request timeout');
         }
         
         // Handle CORS errors
         if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-            console.error('CORS or Network Error:', {
+            logDebug('CORS or Network Error', {
                 url,
                 error: error.message,
                 origin: window.location.origin
@@ -124,6 +166,12 @@ async function makeApiRequest(endpoint, options = {}) {
         
         // If it's a network error and we're not on login page, redirect to login
         if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+            logDebug('Network Error', {
+                isOnLoginPage,
+                isLoginRequest,
+                isVerifyRequest
+            });
+            
             if (!isOnLoginPage && !isLoginRequest && !isVerifyRequest) {
                 localStorage.removeItem('token');
                 localStorage.removeItem('currentUser');
@@ -131,9 +179,9 @@ async function makeApiRequest(endpoint, options = {}) {
             }
         }
         
-        console.error('API Request failed:', error);
+        logDebug('API Error', error);
         throw error;
     }
 }
 
-export { CONFIG, joinUrl, makeApiRequest };
+export { CONFIG, joinUrl, makeApiRequest, logDebug };

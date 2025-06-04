@@ -1,20 +1,18 @@
-import { CONFIG, makeApiRequest } from './js/utils.js';
+import { CONFIG, makeApiRequest, logDebug } from './js/utils.js';
 
 // Debug logging function
 function debugLog(...args) {
-    if (window.DEBUG) {
-        console.log('[Debug]', new Date().toISOString(), ...args);
-    }
+    logDebug('Debug', ...args);
 }
 
 // Error logging function
 function errorLog(...args) {
-    console.error('[Error]', new Date().toISOString(), ...args);
+    logDebug('Error', ...args);
 }
 
 // Show status message function
 function showStatusMessage(message, type = 'info') {
-    debugLog('Showing status message:', { message, type });
+    debugLog('Status Message', { message, type });
     const statusMessage = document.getElementById('statusMessage');
     if (statusMessage) {
         statusMessage.textContent = message;
@@ -34,7 +32,8 @@ const SESSION = {
     lastCheck: null,
     isCheckingAuth: false,
     redirecting: false,
-    lastRedirect: null
+    lastRedirect: null,
+    redirectCount: 0
 };
 
 function loadSession() {
@@ -43,6 +42,11 @@ function loadSession() {
         const userStr = localStorage.getItem('currentUser');
         SESSION.user = userStr ? JSON.parse(userStr) : null;
         SESSION.lastCheck = Date.now();
+        debugLog('Session Loaded', {
+            hasToken: !!SESSION.token,
+            hasUser: !!SESSION.user,
+            lastCheck: SESSION.lastCheck
+        });
     } catch (err) {
         errorLog('Error loading session:', err);
         clearSession();
@@ -50,45 +54,63 @@ function loadSession() {
 }
 
 function clearSession() {
+    debugLog('Clearing Session');
     localStorage.removeItem('token');
     localStorage.removeItem('currentUser');
     SESSION.token = null;
     SESSION.user = null;
     SESSION.lastCheck = null;
     SESSION.lastRedirect = null;
+    SESSION.redirectCount = 0;
 }
 
 function isLoginPage() {
     const path = window.location.pathname.toLowerCase();
-    return path.includes('login.html') || path.includes('register.html');
+    const isLogin = path.includes('login.html') || path.includes('register.html');
+    debugLog('Page Check', { path, isLogin });
+    return isLogin;
 }
 
 function safeRedirect(url) {
     // Prevent redirect if already redirecting
     if (SESSION.redirecting) {
-        debugLog('Redirect already in progress, skipping');
+        debugLog('Redirect Blocked - Already redirecting');
         return;
     }
     
     // Prevent redirect loop
     const now = Date.now();
     if (SESSION.lastRedirect && (now - SESSION.lastRedirect) < 2000) {
-        debugLog('Too many redirects, waiting...');
+        debugLog('Redirect Blocked - Too frequent');
+        return;
+    }
+    
+    // Prevent too many redirects
+    SESSION.redirectCount++;
+    if (SESSION.redirectCount > 3) {
+        debugLog('Redirect Blocked - Too many redirects');
+        clearSession();
         return;
     }
     
     const currentPath = window.location.pathname.toLowerCase();
     const targetPath = url.toLowerCase();
     
+    debugLog('Redirect Check', {
+        from: currentPath,
+        to: targetPath,
+        redirectCount: SESSION.redirectCount
+    });
+    
     // Prevent redirect to the same page
     if (currentPath.includes(targetPath)) {
-        debugLog('Already on target page, skipping redirect');
+        debugLog('Redirect Blocked - Same page');
         return;
     }
     
     SESSION.redirecting = true;
     SESSION.lastRedirect = now;
-    debugLog('Redirecting to:', url);
+    debugLog('Redirecting', { to: url });
     
     // Use replace for login/register redirects, use assign for others
     if (url.includes('login.html') || url.includes('register.html') || 
@@ -99,41 +121,44 @@ function safeRedirect(url) {
     }
 }
 
-// Check authentication status
 async function checkAuth() {
     // Prevent multiple simultaneous checks
     if (SESSION.isCheckingAuth || SESSION.redirecting) {
-        debugLog('Auth check or redirect already in progress, skipping');
+        debugLog('Auth Check Blocked', {
+            isCheckingAuth: SESSION.isCheckingAuth,
+            redirecting: SESSION.redirecting
+        });
         return;
     }
 
     try {
         SESSION.isCheckingAuth = true;
-        debugLog('Starting auth check');
+        debugLog('Starting Auth Check');
 
         loadSession();
         
         const currentPath = window.location.pathname.toLowerCase();
         const isOnLoginPage = isLoginPage();
         
-        debugLog('Auth state:', { 
+        debugLog('Auth State', { 
             path: currentPath,
             isLoginPage: isOnLoginPage,
             hasToken: !!SESSION.token,
             hasUser: !!SESSION.user,
-            lastCheck: SESSION.lastCheck
+            lastCheck: SESSION.lastCheck,
+            redirectCount: SESSION.redirectCount
         });
 
         // Handle login/register pages
         if (isOnLoginPage) {
             if (SESSION.token && SESSION.user) {
                 try {
-                    // Quick token verification before redirecting
+                    debugLog('Verifying token on login page');
                     const verifyResult = await makeApiRequest(CONFIG.ENDPOINTS.VERIFY);
-                    debugLog('Token valid, redirecting to dashboard');
+                    debugLog('Token valid on login page', verifyResult);
                     safeRedirect('dashboard.html');
                 } catch (err) {
-                    debugLog('Invalid token on login page, clearing session');
+                    debugLog('Invalid token on login page', err);
                     clearSession();
                 }
             }
@@ -143,8 +168,9 @@ async function checkAuth() {
         // For all other pages, verify token if exists
         if (SESSION.token && SESSION.user) {
             try {
+                debugLog('Verifying token on protected page');
                 const verifyResult = await makeApiRequest(CONFIG.ENDPOINTS.VERIFY);
-                debugLog('Token verification successful:', verifyResult);
+                debugLog('Token verification successful', verifyResult);
             } catch (err) {
                 errorLog('Token verification failed:', err);
                 clearSession();
@@ -155,7 +181,7 @@ async function checkAuth() {
             }
         } else {
             // No token or user, redirect to login
-            debugLog('No token or user found, redirecting to login');
+            debugLog('No auth found, redirecting to login');
             clearSession();
             if (!isOnLoginPage) {
                 safeRedirect('login.html');
@@ -163,7 +189,7 @@ async function checkAuth() {
         }
 
     } catch (err) {
-        errorLog('Error during auth check:', err);
+        errorLog('Auth check error:', err);
         clearSession();
         if (!isOnLoginPage) {
             safeRedirect('login.html');
@@ -175,6 +201,7 @@ async function checkAuth() {
 
 // Initialize auth check on page load with delay
 document.addEventListener('DOMContentLoaded', () => {
+    debugLog('Page Loaded - Initializing auth check');
     setTimeout(checkAuth, 500);
 });
 

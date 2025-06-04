@@ -1,28 +1,28 @@
-import { CONFIG, makeApiRequest } from './js/utils.js';
+import { CONFIG, makeApiRequest, logDebug } from './js/utils.js';
 import { SESSION, debugLog, errorLog, showStatusMessage, safeRedirect } from './script.js';
 
 // Only check login state if we're on the login page
 if (window.location.pathname.toLowerCase().includes('login.html')) {
+    debugLog('Login Page Init');
     // Check if we're already logged in
     const token = localStorage.getItem('token');
     const currentUser = localStorage.getItem('currentUser');
     
     if (token && currentUser && !SESSION.redirecting) {
-        debugLog('Found existing session, verifying token...');
+        debugLog('Found existing session on login page', { hasToken: !!token });
         makeApiRequest(CONFIG.ENDPOINTS.VERIFY)
             .then(() => {
-                debugLog('Token valid, redirecting to dashboard');
+                debugLog('Token verified on login page');
                 if (!SESSION.redirecting) {
                     safeRedirect('dashboard.html');
                 }
             })
             .catch((err) => {
-                debugLog('Invalid token, clearing session:', err);
+                debugLog('Token verification failed on login page', err);
                 localStorage.removeItem('token');
                 localStorage.removeItem('currentUser');
                 SESSION.token = null;
                 SESSION.user = null;
-                // Don't redirect, just clear the session
             });
     }
 }
@@ -30,13 +30,13 @@ if (window.location.pathname.toLowerCase().includes('login.html')) {
 // LOGIN
 const loginForm = document.getElementById("loginForm");
 if (loginForm) {
-    debugLog('Login form detected, setting up event listener');
+    debugLog('Login form detected');
     
     loginForm.addEventListener("submit", async (e) => {
         e.preventDefault();
         
         if (SESSION.isCheckingAuth || SESSION.redirecting) {
-            debugLog('Auth check or redirect in progress, preventing login');
+            debugLog('Login blocked - Auth check or redirect in progress');
             return;
         }
 
@@ -64,7 +64,7 @@ if (loginForm) {
                 throw new Error('Email dan password harus diisi');
             }
 
-            debugLog('Attempting login for email:', email);
+            debugLog('Attempting login', { email });
             showStatusMessage('Sedang login...', 'info');
 
             const data = await makeApiRequest(CONFIG.ENDPOINTS.LOGIN, {
@@ -72,12 +72,13 @@ if (loginForm) {
                 body: JSON.stringify({ email, password })
             });
 
-            debugLog('Login successful:', data);
+            debugLog('Login successful', { user: data.user });
             
             // Update session and storage
             SESSION.token = data.accessToken;
             SESSION.user = data.user;
             SESSION.lastCheck = Date.now();
+            SESSION.redirectCount = 0;
             
             localStorage.setItem("token", data.accessToken);
             localStorage.setItem("currentUser", JSON.stringify(data.user));
@@ -92,7 +93,7 @@ if (loginForm) {
             }, 1500);
 
         } catch (err) {
-            errorLog("Login error:", err);
+            errorLog('Login error', err);
             showStatusMessage(err.message || "Terjadi kesalahan saat login. Silakan coba lagi.", 'error');
             
             // Clear password field on error
@@ -104,6 +105,7 @@ if (loginForm) {
             localStorage.removeItem('currentUser');
             SESSION.token = null;
             SESSION.user = null;
+            SESSION.redirectCount = 0;
         } finally {
             // Re-enable form after a delay
             setTimeout(() => {
@@ -124,12 +126,12 @@ const logoutBtn = document.getElementById('logoutBtn');
 if (logoutBtn) {
     logoutBtn.addEventListener('click', async () => {
         if (SESSION.isCheckingAuth || SESSION.redirecting) {
-            debugLog('Auth check or redirect in progress, preventing logout');
+            debugLog('Logout blocked - Auth check or redirect in progress');
             return;
         }
 
         try {
-            debugLog('Logging out...');
+            debugLog('Initiating logout');
             showStatusMessage('Sedang logout...', 'info');
             
             await makeApiRequest(CONFIG.ENDPOINTS.LOGOUT, {
@@ -139,11 +141,14 @@ if (logoutBtn) {
             debugLog('Logout successful');
             
         } catch (error) {
-            errorLog('Logout error:', error);
+            errorLog('Logout error', error);
         } finally {
             // Always clear session and redirect
             localStorage.removeItem('token');
             localStorage.removeItem('currentUser');
+            SESSION.token = null;
+            SESSION.user = null;
+            SESSION.redirectCount = 0;
             showStatusMessage('Logout berhasil!', 'success');
             
             // Small delay to show the success message
