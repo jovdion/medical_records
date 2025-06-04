@@ -1,15 +1,25 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem Rekam Medis</title>
     <script>
-        // Simple redirect to login page
-        window.location.replace('login.html');
+        // Check if user is logged in
+        const token = localStorage.getItem('token');
+        if (token) {
+            window.location.href = '/dashboard.html';
+        } else {
+            window.location.href = '/login.html';
+        }
     </script>
 </head>
 <body>
-    <p>Redirecting to login page...</p>
+    <div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif;">
+        <div style="text-align: center;">
+            <h1>Sistem Rekam Medis</h1>
+            <p>Mengalihkan ke halaman yang sesuai...</p>
+        </div>
+    </div>
 </body>
 </html> 
