@@ -1,4 +1,8 @@
 steps:
+  # 0. Prepare files
+  - name: "ubuntu"
+    args: ["bash", "-c", "chmod +x backend/copy-files.sh && cd backend && ./copy-files.sh"]
+
   # 1. Build Docker image untuk backend
   - name: "gcr.io/cloud-builders/docker"
     args: ["build", "-t", "gcr.io/$PROJECT_ID/medical-records-be", "."]

@@ -9,7 +9,7 @@ import cookieParser from "cookie-parser";
 import db from "./config/database.js";
 
 // Import routing dan model
-import UserRoute from "./Route/UserRoute.js";
+import UserRoute from "./Route/Userroute.js";
 import PatientRoute from "./Route/PatientRoute.js";
 import DoctorRoute from "./Route/DoctorRoute.js";
 import MedicalRecordRoute from "./Route/MedicalRecordRoute.js";
