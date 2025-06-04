@@ -84,8 +84,8 @@ async function makeApiRequest(endpoint, options = {}) {
         'X-Requested-With': 'XMLHttpRequest'
     };
 
-    // Add Authorization header if we have a token and it's not a login request
-    if (currentToken && !isLoginRequest) {
+    // Add Authorization header if we have a token
+    if (currentToken) {
         const cleanToken = currentToken.trim();
         headers['Authorization'] = `Bearer ${cleanToken}`;
         logDebug('Adding Authorization header', {
@@ -183,7 +183,8 @@ async function makeApiRequest(endpoint, options = {}) {
                     requestOptions.headers.Authorization.substring(0, 20) + '...' : 
                     'none',
                 url,
-                status: response.status
+                status: response.status,
+                data
             });
             
             // Only clear session if it's not a login request and we have a token
@@ -198,7 +199,7 @@ async function makeApiRequest(endpoint, options = {}) {
                 }
             }
             
-            throw new Error(data.message || 'Unauthorized access');
+            throw new Error(data.msg || 'Unauthorized access');
         }
 
         if (!response.ok) {
@@ -207,7 +208,7 @@ async function makeApiRequest(endpoint, options = {}) {
                 data,
                 url
             });
-            throw new Error(data.message || `HTTP error! status: ${response.status}`);
+            throw new Error(data.msg || `HTTP error! status: ${response.status}`);
         }
 
         // If this is a successful login, update the session immediately
