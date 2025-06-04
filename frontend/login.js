@@ -90,7 +90,8 @@ if (loginForm) {
                 debugLog('Verifying token after login', {
                     hasToken: !!localStorage.getItem('token'),
                     sessionToken: !!SESSION.token,
-                    tokenPreview: cleanToken.substring(0, 10) + '...'
+                    tokenPreview: cleanToken.substring(0, 10) + '...',
+                    cookies: document.cookie
                 });
                 
                 // Double check token format
@@ -105,9 +106,15 @@ if (loginForm) {
                 }
                 
                 // Try to verify token
-                const verifyResult = await makeApiRequest(CONFIG.ENDPOINTS.VERIFY);
+                const verifyResult = await makeApiRequest(CONFIG.ENDPOINTS.VERIFY, {
+                    credentials: 'include',
+                    withCredentials: true
+                });
                 
-                debugLog('Token verified after login', verifyResult);
+                debugLog('Token verified after login', {
+                    result: verifyResult,
+                    cookies: document.cookie
+                });
                 
                 // Delay redirect to show success message
                 setTimeout(() => {
@@ -118,7 +125,8 @@ if (loginForm) {
             } catch (verifyErr) {
                 errorLog('Token verification failed after login', {
                     error: verifyErr,
-                    tokenPreview: cleanToken.substring(0, 10) + '...'
+                    tokenPreview: cleanToken.substring(0, 10) + '...',
+                    cookies: document.cookie
                 });
                 
                 // Clear invalid session

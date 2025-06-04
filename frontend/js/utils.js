@@ -26,7 +26,8 @@ const CONFIG = {
     // Default Request Options
     REQUEST_OPTIONS: {
         mode: 'cors',
-        credentials: 'include'
+        credentials: 'include',
+        withCredentials: true
     }
 };
 
@@ -70,7 +71,8 @@ async function makeApiRequest(endpoint, options = {}) {
         isVerifyRequest,
         currentPath,
         isOnLoginPage,
-        hasToken: !!token
+        hasToken: !!token,
+        cookies: document.cookie
     });
 
     // For verify requests, ensure we're using the latest token
@@ -78,7 +80,8 @@ async function makeApiRequest(endpoint, options = {}) {
 
     // Prepare headers
     const headers = {
-        ...CONFIG.HEADERS
+        ...CONFIG.HEADERS,
+        'X-Requested-With': 'XMLHttpRequest'
     };
 
     // Add Authorization header if we have a token and it's not a login request
@@ -102,14 +105,10 @@ async function makeApiRequest(endpoint, options = {}) {
 
     logDebug('Request Options', {
         method: requestOptions.method,
-        headers: {
-            ...requestOptions.headers,
-            Authorization: requestOptions.headers.Authorization ? 
-                requestOptions.headers.Authorization.substring(0, 20) + '...' : 
-                'none'
-        },
-        isVerifyRequest,
-        hasToken: !!currentToken,
+        headers: requestOptions.headers,
+        credentials: requestOptions.credentials,
+        mode: requestOptions.mode,
+        withCredentials: requestOptions.withCredentials,
         url
     });
 
@@ -120,12 +119,10 @@ async function makeApiRequest(endpoint, options = {}) {
         logDebug('Fetch Request', {
             url,
             method: requestOptions.method || 'GET',
-            headers: {
-                ...requestOptions.headers,
-                Authorization: requestOptions.headers.Authorization ? 
-                    requestOptions.headers.Authorization.substring(0, 20) + '...' : 
-                    'none'
-            }
+            headers: requestOptions.headers,
+            credentials: requestOptions.credentials,
+            mode: requestOptions.mode,
+            withCredentials: requestOptions.withCredentials
         });
         
         const response = await fetch(url, {
@@ -139,7 +136,8 @@ async function makeApiRequest(endpoint, options = {}) {
             status: response.status,
             statusText: response.statusText,
             headers: Object.fromEntries(response.headers.entries()),
-            url
+            url,
+            cookies: document.cookie
         });
         
         let data;
