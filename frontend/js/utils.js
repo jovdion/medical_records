@@ -1,7 +1,7 @@
 // API Configuration
 const CONFIG = {
     // Change this based on environment
-    BASE_URL: window._env_?.API_URL || 'http://localhost:3000',
+    BASE_URL: window._env_?.API_URL || 'https://medical-records-be-913201672104.us-central1.run.app',
     API_TIMEOUT: 30000, // 30 seconds
     DEBUG: true, // Enable detailed logging
     
@@ -25,8 +25,8 @@ const CONFIG = {
 
     // Default Request Options
     REQUEST_OPTIONS: {
-        credentials: 'include',
-        mode: 'cors'
+        mode: 'cors',
+        credentials: 'include'
     }
 };
 
@@ -97,9 +97,7 @@ async function makeApiRequest(endpoint, options = {}) {
         headers: {
             ...headers,
             ...(options.headers || {})
-        },
-        credentials: 'include',
-        mode: 'cors'
+        }
     };
 
     logDebug('Request Options', {
@@ -111,7 +109,8 @@ async function makeApiRequest(endpoint, options = {}) {
                 'none'
         },
         isVerifyRequest,
-        hasToken: !!currentToken
+        hasToken: !!currentToken,
+        url
     });
 
     try {
@@ -139,23 +138,40 @@ async function makeApiRequest(endpoint, options = {}) {
         logDebug('API Response', {
             status: response.status,
             statusText: response.statusText,
-            headers: Object.fromEntries(response.headers.entries())
+            headers: Object.fromEntries(response.headers.entries()),
+            url
         });
         
         let data;
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
             data = await response.json();
-            logDebug('Response Data', data);
+            logDebug('Response Data', {
+                ...data,
+                url,
+                status: response.status
+            });
         } else {
             const text = await response.text();
-            logDebug('Response Text', text);
+            logDebug('Response Text', {
+                text,
+                url,
+                status: response.status
+            });
             try {
                 data = JSON.parse(text);
-                logDebug('Parsed JSON Data', data);
+                logDebug('Parsed JSON Data', {
+                    ...data,
+                    url,
+                    status: response.status
+                });
             } catch (e) {
                 data = { message: text };
-                logDebug('Non-JSON Response', data);
+                logDebug('Non-JSON Response', {
+                    data,
+                    url,
+                    status: response.status
+                });
             }
         }
         
@@ -167,7 +183,9 @@ async function makeApiRequest(endpoint, options = {}) {
                 hasToken: !!currentToken,
                 authHeader: requestOptions.headers.Authorization ? 
                     requestOptions.headers.Authorization.substring(0, 20) + '...' : 
-                    'none'
+                    'none',
+                url,
+                status: response.status
             });
             
             // Only clear session if it's not a login request and we have a token
@@ -188,7 +206,8 @@ async function makeApiRequest(endpoint, options = {}) {
         if (!response.ok) {
             logDebug('Response Error', {
                 status: response.status,
-                data
+                data,
+                url
             });
             throw new Error(data.message || `HTTP error! status: ${response.status}`);
         }
@@ -199,7 +218,8 @@ async function makeApiRequest(endpoint, options = {}) {
             logDebug('Updating session after successful login', {
                 hasToken: !!cleanToken,
                 hasUser: !!data.user,
-                tokenPreview: cleanToken.substring(0, 10) + '...'
+                tokenPreview: cleanToken.substring(0, 10) + '...',
+                url
             });
             localStorage.setItem('token', cleanToken);
             if (data.user) {
@@ -216,7 +236,10 @@ async function makeApiRequest(endpoint, options = {}) {
         return data;
     } catch (error) {
         if (error.name === 'AbortError') {
-            logDebug('Timeout Error', error);
+            logDebug('Timeout Error', {
+                error,
+                url
+            });
             throw new Error('Request timeout');
         }
         
@@ -236,7 +259,8 @@ async function makeApiRequest(endpoint, options = {}) {
             logDebug('Network Error', {
                 isOnLoginPage,
                 isLoginRequest,
-                isVerifyRequest
+                isVerifyRequest,
+                url
             });
             
             if (!isOnLoginPage && !isLoginRequest && !isVerifyRequest) {
@@ -246,7 +270,10 @@ async function makeApiRequest(endpoint, options = {}) {
             }
         }
         
-        logDebug('API Error', error);
+        logDebug('API Error', {
+            error,
+            url
+        });
         throw error;
     }
 }

@@ -98,17 +98,14 @@ if (loginForm) {
                     throw new Error('Format token tidak valid');
                 }
                 
-                // Ensure clean token is in localStorage before verification
-                if (!localStorage.getItem('token') || localStorage.getItem('token') !== cleanToken) {
-                    localStorage.setItem('token', cleanToken);
+                // Store token before verification
+                localStorage.setItem('token', cleanToken);
+                if (data.user) {
+                    localStorage.setItem('currentUser', JSON.stringify(data.user));
                 }
                 
                 // Try to verify token
-                const verifyResult = await makeApiRequest(CONFIG.ENDPOINTS.VERIFY, {
-                    headers: {
-                        'Authorization': `Bearer ${cleanToken}`
-                    }
-                });
+                const verifyResult = await makeApiRequest(CONFIG.ENDPOINTS.VERIFY);
                 
                 debugLog('Token verified after login', verifyResult);
                 
