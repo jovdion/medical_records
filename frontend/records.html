@@ -738,6 +738,31 @@
             cancelBtn.style.display = 'none';
         }
         
+        // Delete medical record
+        async function deleteMedicalRecord(id) {
+            if (!confirm('Apakah Anda yakin ingin menghapus rekam medis ini?')) {
+                return;
+            }
+            
+            try {
+                const response = await apiRequest(`${BASE_URL}/medical-records/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response || !response.ok) {
+                    throw new Error('Gagal menghapus rekam medis');
+                }
+                
+                // Refresh the records list and stats
+                getMedicalRecords();
+                updateStats();
+                showStatus('Rekam medis berhasil dihapus', 'success');
+            } catch (error) {
+                console.error('Error:', error);
+                showStatus(error.message, 'error');
+            }
+        }
+        
         // Update statistics
         async function updateStats() {
             try {
