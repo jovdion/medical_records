@@ -76,19 +76,37 @@ async function makeApiRequest(endpoint, options = {}) {
     // For verify requests, ensure we're using the latest token
     const currentToken = isVerifyRequest ? localStorage.getItem('token') : token;
 
+    // Prepare headers
+    const headers = {
+        ...CONFIG.HEADERS
+    };
+
+    // Add Authorization header if we have a token and it's not a login request
+    if (currentToken && !isLoginRequest) {
+        headers['Authorization'] = `Bearer ${currentToken.trim()}`;
+        logDebug('Adding Authorization header', {
+            token: currentToken.substring(0, 10) + '...',
+            headerValue: headers['Authorization']
+        });
+    }
+
     const requestOptions = {
         ...CONFIG.REQUEST_OPTIONS,
         ...options,
         headers: {
-            ...CONFIG.HEADERS,
-            ...(currentToken && !isLoginRequest ? { 'Authorization': `Bearer ${currentToken}` } : {}),
+            ...headers,
             ...(options.headers || {})
         }
     };
 
     logDebug('Request Options', {
         method: requestOptions.method,
-        headers: requestOptions.headers,
+        headers: {
+            ...requestOptions.headers,
+            Authorization: requestOptions.headers.Authorization ? 
+                requestOptions.headers.Authorization.substring(0, 20) + '...' : 
+                'none'
+        },
         isVerifyRequest,
         hasToken: !!currentToken
     });
@@ -100,7 +118,12 @@ async function makeApiRequest(endpoint, options = {}) {
         logDebug('Fetch Request', {
             url,
             method: requestOptions.method || 'GET',
-            headers: requestOptions.headers
+            headers: {
+                ...requestOptions.headers,
+                Authorization: requestOptions.headers.Authorization ? 
+                    requestOptions.headers.Authorization.substring(0, 20) + '...' : 
+                    'none'
+            }
         });
         
         const response = await fetch(url, {
@@ -138,7 +161,10 @@ async function makeApiRequest(endpoint, options = {}) {
                 isOnLoginPage,
                 isLoginRequest,
                 isVerifyRequest,
-                token: currentToken
+                hasToken: !!currentToken,
+                authHeader: requestOptions.headers.Authorization ? 
+                    requestOptions.headers.Authorization.substring(0, 20) + '...' : 
+                    'none'
             });
             
             // Only clear session if it's not a login request and we have a token
@@ -166,11 +192,13 @@ async function makeApiRequest(endpoint, options = {}) {
 
         // If this is a successful login, update the session immediately
         if (isLoginRequest && data.accessToken) {
+            const cleanToken = data.accessToken.trim();
             logDebug('Updating session after successful login', {
-                hasToken: !!data.accessToken,
-                hasUser: !!data.user
+                hasToken: !!cleanToken,
+                hasUser: !!data.user,
+                tokenPreview: cleanToken.substring(0, 10) + '...'
             });
-            localStorage.setItem('token', data.accessToken);
+            localStorage.setItem('token', cleanToken);
             if (data.user) {
                 localStorage.setItem('currentUser', JSON.stringify(data.user));
             }

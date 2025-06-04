@@ -74,8 +74,9 @@ if (loginForm) {
 
             debugLog('Login successful', { user: data.user });
             
-            // Update session
-            SESSION.token = data.accessToken;
+            // Update session with clean token
+            const cleanToken = data.accessToken.trim();
+            SESSION.token = cleanToken;
             SESSION.user = data.user;
             SESSION.lastCheck = Date.now();
             SESSION.redirectCount = 0;
@@ -88,12 +89,13 @@ if (loginForm) {
             try {
                 debugLog('Verifying token after login', {
                     hasToken: !!localStorage.getItem('token'),
-                    sessionToken: !!SESSION.token
+                    sessionToken: !!SESSION.token,
+                    tokenPreview: cleanToken.substring(0, 10) + '...'
                 });
                 
-                // Ensure token is in localStorage before verification
-                if (!localStorage.getItem('token')) {
-                    localStorage.setItem('token', data.accessToken);
+                // Ensure clean token is in localStorage before verification
+                if (!localStorage.getItem('token') || localStorage.getItem('token') !== cleanToken) {
+                    localStorage.setItem('token', cleanToken);
                 }
                 
                 const verifyResult = await makeApiRequest(CONFIG.ENDPOINTS.VERIFY);
@@ -106,7 +108,10 @@ if (loginForm) {
                     }
                 }, 1000);
             } catch (verifyErr) {
-                errorLog('Token verification failed after login', verifyErr);
+                errorLog('Token verification failed after login', {
+                    error: verifyErr,
+                    tokenPreview: cleanToken.substring(0, 10) + '...'
+                });
                 throw new Error('Gagal memverifikasi sesi login. Silakan coba lagi.');
             }
 
