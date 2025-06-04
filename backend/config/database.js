@@ -16,69 +16,99 @@ console.log('Database Config:', {
   username: DB_USERNAME
 });
 
-// Local database configuration
+// Database configuration
 const sequelizeConfig = {
   host: DB_HOST,
   port: DB_PORT,
   dialect: "mysql",
   dialectOptions: {
-    connectTimeout: 30000,
+    connectTimeout: 60000, // Increased timeout to 60 seconds
     timezone: '+00:00',
     dateStrings: true,
-    typeCast: true
+    typeCast: true,
+    // Add SSL if needed
+    ssl: process.env.DB_SSL === 'true' ? {
+      require: true,
+      rejectUnauthorized: false
+    } : false
   },
   pool: {
-    max: 5,
+    max: 10,         // Increased max connections
     min: 0,
-    acquire: 30000,
-    idle: 10000
+    acquire: 60000,  // Increased acquire timeout
+    idle: 20000,     // Increased idle timeout
+    evict: 30000,    // Connection eviction time
+    retry: {
+      match: [
+        /Deadlock/i,
+        /SequelizeConnectionError/,
+        /SequelizeConnectionRefusedError/,
+        /SequelizeHostNotFoundError/,
+        /SequelizeHostNotReachableError/,
+        /SequelizeInvalidConnectionError/,
+        /SequelizeConnectionTimedOutError/,
+        /TimeoutError/,
+        /SequelizeConnectionAcquireTimeoutError/
+      ],
+      max: 3 // Maximum retry attempts
+    }
   },
   timezone: '+00:00',
-  logging: false
+  logging: console.log, // Enable logging for debugging
+  retry: {
+    max: 3 // Global retry attempts
+  }
 };
 
 // Initialize Sequelize connection
 const db = new Sequelize(DB_NAME, DB_USERNAME, DB_PASSWORD, sequelizeConfig);
 
-// Test the connection
-const testConnection = async () => {
-  try {
-    await db.authenticate();
-    console.log('✅ Database connection has been established successfully.');
-  } catch (error) {
-    if (error.original && error.original.code === 'ER_BAD_DB_ERROR') {
-      console.log('🔄 Database does not exist, attempting to create it...');
-      // Create a temporary connection without database selection
-      const tempDb = new Sequelize('', DB_USERNAME, DB_PASSWORD, {
-        ...sequelizeConfig,
-        database: null
-      });
+// Test the connection with retries
+const testConnection = async (retries = 3) => {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      console.log(`Attempting database connection (attempt ${attempt}/${retries})...`);
+      await db.authenticate();
+      console.log('✅ Database connection has been established successfully.');
+      return true;
+    } catch (error) {
+      console.error(`❌ Connection attempt ${attempt} failed:`, error.message);
       
-      try {
-        await tempDb.query(`CREATE DATABASE IF NOT EXISTS ${DB_NAME};`);
-        console.log(`✅ Database ${DB_NAME} created successfully`);
-        await tempDb.close();
-        
-        // Try to connect again
-        await db.authenticate();
-        console.log('✅ Successfully connected to the new database');
-      } catch (createError) {
-        console.error('❌ Failed to create database:', createError);
-        throw createError;
+      if (error.original && error.original.code === 'ER_BAD_DB_ERROR') {
+        console.log('🔄 Database does not exist, attempting to create it...');
+        try {
+          const tempDb = new Sequelize('', DB_USERNAME, DB_PASSWORD, {
+            ...sequelizeConfig,
+            database: null
+          });
+          
+          await tempDb.query(`CREATE DATABASE IF NOT EXISTS ${DB_NAME};`);
+          console.log(`✅ Database ${DB_NAME} created successfully`);
+          await tempDb.close();
+          continue; // Try to connect again
+        } catch (createError) {
+          console.error('❌ Failed to create database:', createError);
+          if (attempt === retries) throw createError;
+        }
       }
-    } else {
-      console.error('❌ Unable to connect to the database:', error);
-      console.error('Error details:', {
-        message: error.message,
-        name: error.name,
-        original: error.original
-      });
-      throw error;
+      
+      if (attempt === retries) {
+        console.error('❌ All connection attempts failed');
+        throw error;
+      }
+      
+      // Wait before next retry
+      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
+      console.log(`Waiting ${delay}ms before next attempt...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
 };
 
 // Test connection on startup
-testConnection();
+testConnection().catch(error => {
+  console.error('Fatal database connection error:', error);
+  process.exit(1);
+});
 
 export default db;

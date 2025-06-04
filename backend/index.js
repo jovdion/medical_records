@@ -26,13 +26,40 @@ const projectRoot = path.join(__dirname, "..");
 // Middleware
 app.use(express.json());
 app.use(cookieParser());
-app.use(cors({
+
+// CORS configuration
+const corsOptions = {
     credentials: true,
-    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['https://medical-records-be-913201672104.us-central1.run.app', 'http://localhost:5000'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
-    exposedHeaders: ['Set-Cookie']
-}));
+    origin: function (origin, callback) {
+        const allowedOrigins = [
+            'https://medical-records-be-913201672104.us-central1.run.app',
+            'http://localhost:5000',
+            'http://localhost:3000',
+            undefined // Allow requests with no origin (like mobile apps or curl requests)
+        ];
+        if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+    exposedHeaders: ['Set-Cookie'],
+    optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
+
+// Add error logging middleware
+app.use((err, req, res, next) => {
+    console.error('Error details:', err);
+    console.error('Stack trace:', err.stack);
+    res.status(500).json({ 
+        message: "Internal Server Error",
+        error: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+    });
+});
 
 // API Routes
 app.use('/api', UserRoute);
@@ -51,6 +78,7 @@ app.get("/health", async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
+    console.error('Health check error:', error);
     res.status(500).json({ 
       status: 'Error', 
       database: 'Disconnected',
@@ -86,6 +114,7 @@ const syncDatabase = async () => {
     
   } catch (error) {
     console.error('❌ Database synchronization failed:', error);
+    console.error('Error details:', error);
     console.log('💡 If this is the first run, please use setup-db.js first');
     throw error;
   }
@@ -111,15 +140,10 @@ const startServer = async () => {
     
   } catch (error) {
     console.error('❌ Failed to start server:', error);
+    console.error('Error details:', error);
     process.exit(1);
   }
 };
 
 // Start the application
 startServer();
-
-// Error handler
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ message: "Something broke!" });
-});
