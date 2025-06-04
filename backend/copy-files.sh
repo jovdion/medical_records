@@ -22,5 +22,8 @@ cp controllers/PatientController.js controllers/PatientController.js
 cp controllers/MedicalRecordController.js controllers/MedicalRecordController.js
 cp controllers/DashboardController.js controllers/DashboardController.js
 
+# Copy Middleware files with correct case
+cp middleware/verifytoken.js middleware/VerifyToken.js
+
 # Make the script executable
 chmod +x copy-files.sh 
