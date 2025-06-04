@@ -73,15 +73,25 @@ async function makeApiRequest(endpoint, options = {}) {
         hasToken: !!token
     });
 
+    // For verify requests, ensure we're using the latest token
+    const currentToken = isVerifyRequest ? localStorage.getItem('token') : token;
+
     const requestOptions = {
         ...CONFIG.REQUEST_OPTIONS,
         ...options,
         headers: {
             ...CONFIG.HEADERS,
-            ...(token && !isLoginRequest ? { 'Authorization': `Bearer ${token}` } : {}),
+            ...(currentToken && !isLoginRequest ? { 'Authorization': `Bearer ${currentToken}` } : {}),
             ...(options.headers || {})
         }
     };
+
+    logDebug('Request Options', {
+        method: requestOptions.method,
+        headers: requestOptions.headers,
+        isVerifyRequest,
+        hasToken: !!currentToken
+    });
 
     try {
         const controller = new AbortController();
@@ -127,11 +137,12 @@ async function makeApiRequest(endpoint, options = {}) {
             logDebug('Unauthorized', {
                 isOnLoginPage,
                 isLoginRequest,
-                isVerifyRequest
+                isVerifyRequest,
+                token: currentToken
             });
             
             // Only clear session if it's not a login request and we have a token
-            if (!isLoginRequest && token) {
+            if (!isLoginRequest && currentToken) {
                 localStorage.removeItem('token');
                 localStorage.removeItem('currentUser');
                 
@@ -155,7 +166,10 @@ async function makeApiRequest(endpoint, options = {}) {
 
         // If this is a successful login, update the session immediately
         if (isLoginRequest && data.accessToken) {
-            logDebug('Updating session after successful login');
+            logDebug('Updating session after successful login', {
+                hasToken: !!data.accessToken,
+                hasUser: !!data.user
+            });
             localStorage.setItem('token', data.accessToken);
             if (data.user) {
                 localStorage.setItem('currentUser', JSON.stringify(data.user));

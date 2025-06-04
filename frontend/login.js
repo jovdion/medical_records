@@ -83,12 +83,21 @@ if (loginForm) {
             showStatusMessage(data.msg || 'Login berhasil! Mengalihkan ke dashboard...', 'success');
             
             // Small delay before verifying token
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 1000));
             
             try {
-                debugLog('Verifying token after login');
-                await makeApiRequest(CONFIG.ENDPOINTS.VERIFY);
-                debugLog('Token verified after login');
+                debugLog('Verifying token after login', {
+                    hasToken: !!localStorage.getItem('token'),
+                    sessionToken: !!SESSION.token
+                });
+                
+                // Ensure token is in localStorage before verification
+                if (!localStorage.getItem('token')) {
+                    localStorage.setItem('token', data.accessToken);
+                }
+                
+                const verifyResult = await makeApiRequest(CONFIG.ENDPOINTS.VERIFY);
+                debugLog('Token verified after login', verifyResult);
                 
                 // Delay redirect to show success message
                 setTimeout(() => {
