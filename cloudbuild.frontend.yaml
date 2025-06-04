@@ -10,6 +10,8 @@ steps:
         ls -la
         echo "Creating js directory if not exists..."
         mkdir -p js
+        echo "Verifying file permissions..."
+        chmod -R 755 .
 
   # Install dependencies
   - name: 'node:18'
@@ -33,7 +35,7 @@ steps:
         echo "Verifying env.js..."
         cat js/env.js
 
-  # Verify required files exist
+  # Verify required files exist and show contents
   - name: 'ubuntu'
     dir: 'frontend'
     args:
@@ -41,19 +43,28 @@ steps:
       - '-c'
       - |
         echo "Verifying required files..."
-        for file in index.html login.html; do
+        for file in index.html login.html dashboard.html patients.html doctors.html records.html; do
           if [ ! -f "$file" ]; then
             echo "Error: $file not found!"
             exit 1
           else
-            echo "$file exists"
+            echo "Found $file:"
+            head -n 1 "$file"
           fi
         done
         echo "All required files present"
+        echo "Directory structure:"
+        find . -type f -name "*.html" -o -name "*.js"
 
-  # Build Docker image
+  # Build Docker image with debug output
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/medical-records-fe', './frontend']
+    args: 
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/medical-records-fe'
+      - '--progress=plain'
+      - '--no-cache'
+      - './frontend'
 
   # Push to Container Registry
   - name: 'gcr.io/cloud-builders/docker'

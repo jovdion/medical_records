@@ -4,7 +4,7 @@
   "description": "Frontend for Medical Records System",
   "main": "index.html",
   "scripts": {
-    "start": "serve -s /app",
+    "start": "serve .",
     "build": "echo 'No build step required'",
     "test": "echo 'No tests specified'"
   },

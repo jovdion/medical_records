@@ -1,10 +1,14 @@
 {
   "public": ".",
+  "directoryListing": false,
+  "trailingSlash": false,
   "rewrites": [
-    {
-      "source": "/**",
-      "destination": "/index.html"
-    }
+    { "source": "/login", "destination": "/login.html" },
+    { "source": "/dashboard", "destination": "/dashboard.html" },
+    { "source": "/patients", "destination": "/patients.html" },
+    { "source": "/doctors", "destination": "/doctors.html" },
+    { "source": "/records", "destination": "/records.html" },
+    { "source": "/**", "destination": "/index.html" }
   ],
   "headers": [
     {
@@ -13,6 +17,10 @@
         {
           "key": "Cache-Control",
           "value": "no-cache, no-store, must-revalidate"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
         }
       ]
     }

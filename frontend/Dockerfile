@@ -2,7 +2,7 @@
 FROM node:18-alpine
 
 # Set the working directory
-WORKDIR /app
+WORKDIR /usr/src/app
 
 # Copy package.json and package-lock.json
 COPY package*.json ./
@@ -10,14 +10,22 @@ COPY package*.json ./
 # Install dependencies
 RUN npm install
 
-# Copy the rest of your app's source code from the frontend directory
-COPY . .
+# Copy serve configuration
+COPY serve.json ./
 
-# Ensure proper permissions and file existence
-RUN ls -la && \
-    chmod -R 755 . && \
-    echo "Checking for index.html:" && ls -la index.html && \
-    echo "Checking for login.html:" && ls -la login.html
+# Copy the rest of your app's source code
+COPY . ./
+
+# Debug: List files
+RUN echo "Current directory contents:" && \
+    ls -la && \
+    echo "Verifying key files:" && \
+    ls -la index.html && \
+    ls -la login.html && \
+    ls -la js/
+
+# Set correct permissions
+RUN chmod -R 755 .
 
 # Expose port 3000
 EXPOSE 3000
