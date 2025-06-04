@@ -803,14 +803,33 @@
         
         // Show status message
         function showStatus(message, type) {
+            const existingStatus = document.querySelectorAll('.status');
+            existingStatus.forEach(status => status.remove());
+
             const statusDiv = document.createElement('div');
             statusDiv.className = `status ${type}`;
             statusDiv.textContent = message;
+            statusDiv.style.display = 'block';
             
             const container = document.querySelector('.main-content');
             container.insertBefore(statusDiv, container.firstChild);
             
             setTimeout(() => statusDiv.remove(), 3000);
+        }
+
+        // Clear validation errors
+        function clearErrors() {
+            const errorMessages = document.querySelectorAll('.error-message');
+            errorMessages.forEach(error => error.textContent = '');
+            
+            const inputs = document.querySelectorAll('input, select, textarea');
+            inputs.forEach(input => {
+                input.classList.remove('error');
+                const formGroup = input.closest('.form-group');
+                if (formGroup) {
+                    formGroup.classList.remove('error');
+                }
+            });
         }
 
         // Logout function
