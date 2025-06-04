@@ -13,6 +13,9 @@ RUN npm install
 # Copy source code
 COPY . .
 
+# Make copy-files.sh executable and run it
+RUN chmod +x copy-files.sh && ./copy-files.sh
+
 # Expose port
 EXPOSE 3000
 

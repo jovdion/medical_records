@@ -1,7 +1,15 @@
 steps:
-  # 0. Prepare files
+  # 0. Prepare files and set permissions
   - name: "ubuntu"
-    args: ["bash", "-c", "chmod +x backend/copy-files.sh && cd backend && ./copy-files.sh"]
+    args: 
+      - "bash"
+      - "-c"
+      - |
+        chmod +x backend/copy-files.sh
+        cd backend
+        ./copy-files.sh
+        find . -type f -name "*.js" -exec chmod 644 {} \;
+        find . -type d -exec chmod 755 {} \;
 
   # 1. Build Docker image untuk backend
   - name: "gcr.io/cloud-builders/docker"
