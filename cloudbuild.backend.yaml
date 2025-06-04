@@ -1,12 +1,12 @@
 steps:
   # 1. Build Docker image untuk backend
   - name: "gcr.io/cloud-builders/docker"
-    args: ["build", "-t", "gcr.io/$PROJECT_ID/notes-be-oscar-final", "."]
+    args: ["build", "-t", "gcr.io/$PROJECT_ID/medical-records-be", "."]
     dir: "backend"
 
   # 2. Push ke Container Registry / Artifact Registry
   - name: "gcr.io/cloud-builders/docker"
-    args: ["push", "gcr.io/$PROJECT_ID/notes-be-oscar-final"]
+    args: ["push", "gcr.io/$PROJECT_ID/medical-records-be"]
 
   # 3. Deploy ke Cloud Run
   - name: "gcr.io/cloud-builders/gcloud"
@@ -15,9 +15,9 @@ steps:
       [
         "run",
         "deploy",
-        "notes-be-oscar-final",
+        "medical-records-be",
         "--image",
-        "gcr.io/$PROJECT_ID/notes-be-oscar-final",
+        "gcr.io/$PROJECT_ID/medical-records-be",
         "--timeout",
         "1000s",
         "--port",
@@ -26,10 +26,8 @@ steps:
         "us-central1",
         "--allow-unauthenticated",
         "--set-env-vars",
-        "ACCESS_TOKEN_SECRET=${_ACCESS_TOKEN_SECRET},REFRESH_TOKEN_SECRET=${_REFRESH_TOKEN_SECRET},DB_HOST=${_DB_HOST},DB_NAME=${_DB_NAME},DB_PASSWORD=${_DB_PASSWORD},DB_USERNAME=${_DB_USERNAME}",
+        "ACCESS_TOKEN_SECRET=${_ACCESS_TOKEN_SECRET},REFRESH_TOKEN_SECRET=${_REFRESH_TOKEN_SECRET},DB_HOST=34.72.200.235,DB_NAME=${_DB_NAME},DB_PASSWORD=${_DB_PASSWORD},DB_USERNAME=${_DB_USERNAME},CORS_ORIGIN=${_CORS_ORIGIN}",
       ]
-
-  # copas --set env-vars (2baris)
 
 # Log hanya akan disimpan di Google Cloud Logging
 # Log tidak akan disimpan di Google Cloud Storage (butuh hak akses).

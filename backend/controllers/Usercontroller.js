@@ -1,4 +1,4 @@
-import Users from "../models/Usermodel.js";
+import Users from "../models/UserModel.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
@@ -6,7 +6,7 @@ import jwt from "jsonwebtoken";
 export const getUsers = async (req, res) => {
     try {
         const users = await Users.findAll({
-            attributes: ["id", "username", "email"],
+            attributes: ["id", "username", "email", "role"],
         });
         res.json(users);
     } catch (error) {
@@ -17,7 +17,7 @@ export const getUsers = async (req, res) => {
 
 // Register a new user
 export const Register = async (req, res) => {
-    const { username, email, password, confPassword } = req.body;
+    const { username, email, password, confPassword, role } = req.body;
 
     if (!username || !email || !password || !confPassword) {
         return res.status(400).json({ msg: "Semua field harus diisi" });
@@ -28,20 +28,34 @@ export const Register = async (req, res) => {
     }
 
     try {
-        // Cek apakah email sudah digunakan
-        const existingUser = await Users.findOne({ where: { email } });
-        if (existingUser) {
+        // Check if email is already used
+        const existingEmail = await Users.findOne({ where: { email } });
+        if (existingEmail) {
             return res.status(400).json({ msg: "Email sudah terdaftar" });
+        }
+
+        // Check if username is already used
+        const existingUsername = await Users.findOne({ where: { username } });
+        if (existingUsername) {
+            return res.status(400).json({ msg: "Username sudah digunakan" });
         }
 
         const salt = await bcrypt.genSalt();
         const hashPassword = await bcrypt.hash(password, salt);
 
-        await Users.create({ username, email, password: hashPassword });
+        await Users.create({ 
+            username, 
+            email, 
+            password: hashPassword,
+            role: role || 'staff' // Default to 'staff' if no role provided
+        });
 
         res.json({ msg: "Register Berhasil" });
     } catch (error) {
         console.error("Error saat register:", error);
+        if (error.name === 'SequelizeValidationError') {
+            return res.status(400).json({ msg: error.errors[0].message });
+        }
         res.status(500).json({ msg: "Register Gagal" });
     }
 };
@@ -49,47 +63,76 @@ export const Register = async (req, res) => {
 // Login user
 export const Login = async (req, res) => {
     try {
+        const { email, password } = req.body;
+
+        if (!email || !password) {
+            return res.status(400).json({ msg: "Email dan password harus diisi" });
+        }
+
         const user = await Users.findOne({
-            where: { email: req.body.email }
+            where: { email }
         });
 
         if (!user) {
             return res.status(404).json({ msg: "Email tidak ditemukan" });
         }
 
-        const match = await bcrypt.compare(req.body.password, user.password);
-        if (!match) return res.status(400).json({ msg: "Password salah" });
+        const match = await bcrypt.compare(password, user.password);
+        if (!match) {
+            return res.status(400).json({ msg: "Password salah" });
+        }
 
-        const userId = user.id;
-        const username = user.username;
-        const email = user.email;
-
+        // JWT token generation with role
         const accessToken = jwt.sign(
-            { userId, username, email },
+            { 
+                userId: user.id, 
+                username: user.username, 
+                email: user.email,
+                role: user.role 
+            },
             process.env.ACCESS_TOKEN_SECRET,
-            { expiresIn: "20s" } // bisa diperpanjang nanti
+            { expiresIn: "1h" }
         );
 
+        // Generate refresh token
         const refreshToken = jwt.sign(
-            { userId, username, email },
+            { 
+                userId: user.id, 
+                username: user.username, 
+                email: user.email,
+                role: user.role 
+            },
             process.env.REFRESH_TOKEN_SECRET,
-            { expiresIn: "1d" }
+            { expiresIn: "7d" }
         );
 
-        await Users.update({ refresh_token: refreshToken }, {
-            where: { id: userId }
-        });
+        // Store refresh token in database
+        await Users.update(
+            { refresh_token: refreshToken },
+            { where: { id: user.id } }
+        );
 
-        res.cookie("refreshToken", refreshToken, {
+        // Set refresh token in cookie
+        res.cookie('refreshToken', refreshToken, {
             httpOnly: true,
-            secure: true,
-            sameSite: 'None',
-            maxAge: 24 * 60 * 60 * 1000 // 1 hari
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict'
         });
 
-        res.json({ accessToken });
+        // Send response with tokens and user info
+        res.json({
+            msg: "Login berhasil",
+            accessToken,
+            user: {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                role: user.role
+            }
+        });
     } catch (error) {
-        console.error("Error saat login:", error);
+        console.error("Error during login:", error);
         res.status(500).json({ msg: "Login Gagal" });
     }
 };
@@ -106,14 +149,19 @@ export const Logout = async (req, res) => {
 
         if (!user) return res.sendStatus(204);
 
-        await Users.update({ refresh_token: null }, {
-            where: { id: user.id }
-        });
+        // Clear refresh token in database
+        await Users.update(
+            { refresh_token: null },
+            { where: { id: user.id } }
+        );
 
+        // Clear cookie
         res.clearCookie('refreshToken');
-        return res.sendStatus(200);
+        res.json({ msg: "Logout berhasil" });
     } catch (error) {
         console.error("Error saat logout:", error);
-        res.sendStatus(500);
+        res.status(500).json({ msg: "Logout Gagal" });
     }
 };
+
+

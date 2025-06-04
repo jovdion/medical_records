@@ -1,7 +1,7 @@
 // API Configuration
 const CONFIG = {
     // Change this based on environment
-    BASE_URL: window._env_?.API_URL || 'http://localhost:3000',
+    BASE_URL: process.env.API_URL || 'http://localhost:3000',
     API_TIMEOUT: 30000, // 30 seconds
     
     // API Endpoints
@@ -9,7 +9,6 @@ const CONFIG = {
         LOGIN: '/api/login',
         LOGOUT: '/api/logout',
         VERIFY: '/api/token',
-        REGISTER: '/api/users',
         PATIENTS: '/api/patients',
         DOCTORS: '/api/doctors',
         MEDICAL_RECORDS: '/api/medical-records',
@@ -73,4 +72,4 @@ async function makeApiRequest(endpoint, options = {}) {
     }
 }
 
-export { CONFIG, joinUrl, makeApiRequest };
+export { CONFIG, joinUrl, makeApiRequest }; 

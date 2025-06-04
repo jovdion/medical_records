@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rekam Medis - Sistem Rekam Medis</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2b6cb0;
+            --secondary-color: #4299e1;
+            --accent-color: #e53e3e;
+            --background-color: #f0f4f8;
+            --success-color: #38a169;
+            --warning-color: #d69e2e;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background-color);
+            min-height: 100vh;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            min-height: 100vh;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            background: linear-gradient(135deg, #2b6cb0 0%, #4299e1 100%);
+            padding: 2rem;
+            color: white;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .sidebar-header {
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .nav-menu {
+            list-style: none;
+        }
+
+        .nav-item {
+            margin-bottom: 0.5rem;
+        }
+
+        .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            transform: translateX(5px);
+        }
+
+        .nav-link.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-weight: 500;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .nav-link.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 4px;
+            background: white;
+        }
+
+        /* Main Content Styles */
+        .main-content {
+            padding: 2rem;
+            min-height: 100vh;
+            width: 100%;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .page-title {
+            color: var(--primary-color);
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-title {
+            color: #718096;
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        /* Form Styles */
+        .form-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .form-title {
+            color: var(--primary-color);
+            margin-bottom: 1.5rem;
+            font-size: 1.25rem;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #4a5568;
+            font-weight: 500;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        /* Table Styles */
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        th {
+            background-color: #f7fafc;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        tr:hover {
+            background-color: #f7fafc;
+        }
+
+        /* Button Styles */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--secondary-color);
+        }
+
+        .btn-danger {
+            background-color: var(--accent-color);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: #c53030;
+        }
+
+        .btn-success {
+            background-color: var(--success-color);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background-color: #2f855a;
+        }
+
+        /* Status Messages */
+        .status {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        .status.success {
+            background-color: #c6f6d5;
+            color: #2f855a;
+        }
+
+        .status.error {
+            background-color: #fed7d7;
+            color: #c53030;
+        }
+
+        /* Filter Section */
+        .filter-section {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            align-items: end;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: fixed;
+                left: -250px;
+                transition: left 0.3s ease;
+                z-index: 1000;
+            }
+
+            .sidebar.active {
+                left: 0;
+            }
+
+            .main-content {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">🏥 MediRecord</div>
+                <p>Sistem Rekam Medis</p>
+            </div>
+            <nav>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="dashboard.html" class="nav-link">📊 Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="patients.html" class="nav-link">👥 Pasien</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="doctors.html" class="nav-link">👨‍⚕️ Dokter</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="records.html" class="nav-link active">📝 Rekam Medis</a>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <div class="header">
+                <h1 class="page-title">Rekam Medis</h1>
+                <button class="btn btn-danger" onclick="logout()">Logout</button>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-title">Total Rekam Medis</div>
+                    <div class="stat-value" id="total-records">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title">Rekam Medis Hari Ini</div>
+                    <div class="stat-value" id="today-records">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title">Rata-rata Kunjungan/Pasien</div>
+                    <div class="stat-value" id="avg-visits">0</div>
+                </div>
+            </div>
+
+            <div class="filter-section">
+                <h2 class="form-title">Filter Rekam Medis</h2>
+                <div class="filter-grid">
+                    <div class="form-group">
+                        <label for="filter-patient">Nama Pasien:</label>
+                        <input type="text" id="filter-patient" placeholder="Cari nama pasien...">
+                    </div>
+                    <div class="form-group">
+                        <label for="filter-date">Tanggal:</label>
+                        <input type="date" id="filter-date">
+                    </div>
+                    <div class="form-group">
+                        <label for="filter-diagnosis">Diagnosa:</label>
+                        <input type="text" id="filter-diagnosis" placeholder="Cari diagnosa...">
+                    </div>
+                    <div class="form-group">
+                        <button class="btn btn-primary" onclick="applyFilters()">Terapkan Filter</button>
+                        <button class="btn btn-danger" onclick="resetFilters()">Reset</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-container">
+                <h2 class="form-title" id="form-title">Tambah Rekam Medis Baru</h2>
+                <form id="medical-record-form">
+                    <input type="hidden" id="record-id">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="patient-select">Pasien:</label>
+                            <select id="patient-select" required>
+                                <option value="">Pilih pasien</option>
+                            </select>
+                            <small class="error-message" id="patient-error"></small>
+                        </div>
+                        <div class="form-group">
+                            <label for="visit-date">Tanggal Kunjungan:</label>
+                            <input type="date" id="visit-date" required>
+                            <small class="error-message" id="visit-date-error"></small>
+                        </div>
+                        <div class="form-group">
+                            <label for="doctor">Dokter:</label>
+                            <select id="doctor" required>
+                                <option value="">Pilih dokter</option>
+                            </select>
+                            <small class="error-message" id="doctor-error"></small>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="symptoms">Gejala:</label>
+                        <textarea id="symptoms" rows="2" required 
+                            minlength="10" maxlength="500"
+                            placeholder="Masukkan gejala pasien (minimal 10 karakter)"></textarea>
+                        <small class="error-message" id="symptoms-error"></small>
+                    </div>
+                    <div class="form-group">
+                        <label for="diagnosis">Diagnosa:</label>
+                        <input type="text" id="diagnosis" required 
+                            minlength="5" maxlength="200"
+                            placeholder="Masukkan diagnosa (minimal 5 karakter)">
+                        <small class="error-message" id="diagnosis-error"></small>
+                    </div>
+                    <div class="form-group">
+                        <label for="treatment">Pengobatan:</label>
+                        <textarea id="treatment" rows="2" required 
+                            minlength="10" maxlength="500"
+                            placeholder="Masukkan rencana pengobatan (minimal 10 karakter)"></textarea>
+                        <small class="error-message" id="treatment-error"></small>
+                    </div>
+                    <div class="form-group">
+                        <label for="notes">Catatan Tambahan:</label>
+                        <textarea id="notes" rows="2" maxlength="500"
+                            placeholder="Masukkan catatan tambahan (opsional)"></textarea>
+                        <small class="error-message" id="notes-error"></small>
+                    </div>
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-primary" id="submit-btn">Simpan Rekam Medis</button>
+                        <button type="button" class="btn btn-danger" id="cancel-btn" style="display:none;" onclick="resetForm()">Batal</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nama Pasien</th>
+                            <th>Umur</th>
+                            <th>Jenis Kelamin</th>
+                            <th>Golongan Darah</th>
+                            <th>Diagnosa</th>
+                            <th>Tanggal Kunjungan</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="records-list">
+                        <!-- Data will be inserted here -->
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Base API URL
+        const BASE_URL = "http://localhost:3000/api";
+        
+        // Get token from localStorage
+        let token = localStorage.getItem('token');
+        
+        // Check if token exists, if not redirect to login
+        if (!token) {
+            window.location.href = 'login.html';
+        }
+
+        // Function to handle session expiry
+        function handleSessionExpired() {
+            alert('Sesi Anda telah habis. Silakan login ulang.');
+            localStorage.removeItem('token');
+            token = null;
+            window.location.href = 'login.html';
+        }
+
+        // Function to make authenticated API requests
+        async function apiRequest(url, options = {}) {
+            try {
+                options.headers = {
+                    ...options.headers,
+                    'Authorization': `Bearer ${token}`
+                };
+
+                const response = await fetch(url, options);
+                
+                if (response.status === 401 || response.status === 403) {
+                    handleSessionExpired();
+                    return null;
+                }
+
+                return response;
+            } catch (err) {
+                console.error("API Request Error:", err);
+                throw err;
+            }
+        }
+        
+        // DOM Elements
+        const medicalRecordForm = document.getElementById('medical-record-form');
+        const recordIdField = document.getElementById('record-id');
+        const patientSelect = document.getElementById('patient-select');
+        const visitDateField = document.getElementById('visit-date');
+        const doctorSelect = document.getElementById('doctor');
+        const recordsList = document.getElementById('records-list');
+        const formTitle = document.getElementById('form-title');
+        const submitBtn = document.getElementById('submit-btn');
+        const cancelBtn = document.getElementById('cancel-btn');
+        
+        // Event listeners
+        medicalRecordForm.addEventListener('submit', handleSubmit);
+        cancelBtn.addEventListener('click', resetForm);
+        
+        // Load data when page loads
+        window.onload = function() {
+            loadPatients();
+            loadDoctors();
+            getMedicalRecords();
+            updateStats();
+            // Set default visit date to today
+            visitDateField.valueAsDate = new Date();
+        };
+        
+        // Load patients for dropdown
+        async function loadPatients() {
+            try {
+                const response = await apiRequest(`${BASE_URL}/patients`);
+                if (!response || !response.ok) throw new Error('Failed to fetch patients');
+                
+                const patients = await response.json();
+                console.log('Loaded patients:', patients); // Debug log
+                
+                // Get the patient select element
+                const patientSelect = document.getElementById('patient-select');
+                
+                // Clear existing options
+                patientSelect.innerHTML = `
+                    <option value="">Pilih pasien</option>
+                    ${patients.map(patient => `
+                        <option value="${patient.id}">${patient.name}</option>
+                    `).join('')}
+                `;
+
+                // Remove existing event listeners by cloning
+                const newPatientSelect = patientSelect.cloneNode(true);
+                patientSelect.parentNode.replaceChild(newPatientSelect, patientSelect);
+                
+                // Re-get the select element and add event listener
+                document.getElementById('patient-select').addEventListener('change', async function() {
+                    if (this.value) {
+                        try {
+                            const response = await apiRequest(`${BASE_URL}/patients/${this.value}`);
+                            if (!response || !response.ok) throw new Error('Failed to fetch patient details');
+                            
+                            const patient = await response.json();
+                            console.log('Selected patient details:', patient);
+                        } catch (error) {
+                            console.error('Error:', error);
+                            showStatus('Gagal mengambil data pasien', 'error');
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading patients:', error);
+                showStatus('Gagal memuat daftar pasien', 'error');
+            }
+        }
+        
+        // Load doctors for dropdown
+        async function loadDoctors() {
+            try {
+                const response = await apiRequest(`${BASE_URL}/doctors`);
+                if (!response || !response.ok) throw new Error('Failed to fetch doctors');
+                
+                const doctors = await response.json();
+                doctorSelect.innerHTML = `
+                    <option value="">Pilih dokter</option>
+                    ${doctors.map(doctor => `
+                        <option value="${doctor.id}">${doctor.name}</option>
+                    `).join('')}
+                `;
+            } catch (error) {
+                console.error('Error loading doctors:', error);
+                showStatus('Failed to load doctors list', 'error');
+            }
+        }
+        
+        // Handle form submission
+        async function handleSubmit(event) {
+            event.preventDefault();
+            
+            // Disable submit button to prevent double submission
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = true;
+            
+            try {
+                // Clear previous errors
+                clearErrors();
+                
+                // Get form values
+                const data = {
+                    patient_id: document.getElementById('patient-select').value,
+                    visit_date: document.getElementById('visit-date').value,
+                    doctor_id: document.getElementById('doctor').value,
+                    symptoms: document.getElementById('symptoms').value.trim(),
+                    diagnosis: document.getElementById('diagnosis').value.trim(),
+                    treatment: document.getElementById('treatment').value.trim(),
+                    notes: document.getElementById('notes').value.trim() || null
+                };
+                
+                // Validate required fields
+                if (!data.patient_id) throw new Error('Pasien harus dipilih');
+                if (!data.visit_date) throw new Error('Tanggal kunjungan harus diisi');
+                if (!data.doctor_id) throw new Error('Dokter harus dipilih');
+                if (!data.symptoms) throw new Error('Gejala harus diisi');
+                if (!data.diagnosis) throw new Error('Diagnosa harus diisi');
+                if (!data.treatment) throw new Error('Pengobatan harus diisi');
+                
+                const recordId = document.getElementById('record-id').value;
+                const method = recordId ? 'PUT' : 'POST';
+                const url = recordId ? `${BASE_URL}/medical-records/${recordId}` : `${BASE_URL}/medical-records`;
+                
+                const response = await apiRequest(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                if (!response || !response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Failed to save record');
+                }
+                
+                // Reset form and refresh data
+                resetForm();
+                getMedicalRecords();
+                updateStats();
+                showStatus(recordId ? 'Record updated successfully' : 'Record created successfully', 'success');
+            } catch (error) {
+                console.error('Error:', error);
+                showStatus(error.message, 'error');
+            } finally {
+                submitBtn.disabled = false;
+            }
+        }
+        
+        // Get all medical records
+        async function getMedicalRecords() {
+            try {
+                const response = await apiRequest(`${BASE_URL}/medical-records`);
+                if (!response || !response.ok) throw new Error('Failed to fetch records');
+                
+                const data = await response.json();
+                displayMedicalRecords(data);
+            } catch (error) {
+                console.error('Error:', error);
+                showStatus('Failed to load medical records', 'error');
+            }
+        }
+        
+        // Display medical records in table
+        function displayMedicalRecords(records) {
+            const recordsList = document.getElementById('records-list');
+            recordsList.innerHTML = records.map(record => `
+                <tr data-id="${record.id}" data-patient-id="${record.patient_id}">
+                    <td>${record.patient_name || '-'}</td>
+                    <td>${record.patient_age || '-'}</td>
+                    <td>${record.patient_gender || '-'}</td>
+                    <td>${record.blood_type || '-'}</td>
+                    <td>${record.diagnosis || '-'}</td>
+                    <td>${record.visit_date ? new Date(record.visit_date).toLocaleDateString('id-ID') : '-'}</td>
+                    <td>
+                        <button class="btn btn-success" onclick="editRecord(${record.id})">Edit</button>
+                        <button class="btn btn-danger" onclick="deleteMedicalRecord(${record.id})">Hapus</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        // Edit record
+        async function editRecord(id) {
+            try {
+                const response = await apiRequest(`${BASE_URL}/medical-records/${id}`);
+                if (!response || !response.ok) throw new Error('Failed to fetch record details');
+                
+                const record = await response.json();
+                console.log('Record to edit:', record); // Debug log
+                
+                // Populate form fields
+                document.getElementById('record-id').value = record.id;
+                document.getElementById('patient-select').value = record.patient_id;
+                document.getElementById('visit-date').value = record.visit_date || '';
+                document.getElementById('doctor').value = record.doctor_id || '';
+                document.getElementById('symptoms').value = record.symptoms || '';
+                document.getElementById('diagnosis').value = record.diagnosis || '';
+                document.getElementById('treatment').value = record.treatment || '';
+                document.getElementById('notes').value = record.notes || '';
+                
+                // Update form state
+                document.getElementById('form-title').textContent = 'Edit Rekam Medis';
+                document.getElementById('submit-btn').textContent = 'Update Rekam Medis';
+                document.getElementById('cancel-btn').style.display = 'inline-block';
+                
+                // Scroll to form
+                document.querySelector('.form-container').scrollIntoView({ behavior: 'smooth' });
+            } catch (error) {
+                console.error('Error:', error);
+                showStatus('Gagal memuat data rekam medis', 'error');
+            }
+        }
+        
+        // Reset form
+        function resetForm() {
+            medicalRecordForm.reset();
+            recordIdField.value = '';
+            visitDateField.valueAsDate = new Date();
+            formTitle.textContent = 'Tambah Rekam Medis Baru';
+            submitBtn.textContent = 'Simpan Rekam Medis';
+            cancelBtn.style.display = 'none';
+        }
+        
+        // Update statistics
+        async function updateStats() {
+            try {
+                const response = await apiRequest(`${BASE_URL}/medical-records`);
+                if (!response || !response.ok) throw new Error('Failed to fetch records');
+                
+                const records = await response.json();
+                
+                // Update total records
+                document.getElementById('total-records').textContent = records.length;
+                
+                // Update today's records
+                const today = new Date().toDateString();
+                const todayRecords = records.filter(r => 
+                    new Date(r.visit_date).toDateString() === today
+                );
+                document.getElementById('today-records').textContent = todayRecords.length;
+                
+                // Update average visits per patient
+                const patientVisits = records.reduce((acc, r) => {
+                    acc[r.patient_id] = (acc[r.patient_id] || 0) + 1;
+                    return acc;
+                }, {});
+                const avgVisits = Object.keys(patientVisits).length
+                    ? Math.round(records.length / Object.keys(patientVisits).length * 10) / 10
+                    : 0;
+                document.getElementById('avg-visits').textContent = avgVisits;
+            } catch (error) {
+                console.error('Error updating stats:', error);
+            }
+        }
+        
+        // Apply filters
+        function applyFilters() {
+            const patientFilter = document.getElementById('filter-patient').value.toLowerCase();
+            const dateFilter = document.getElementById('filter-date').value;
+            const diagnosisFilter = document.getElementById('filter-diagnosis').value.toLowerCase();
+            
+            const rows = document.querySelectorAll('#records-list tr');
+            
+            rows.forEach(row => {
+                const patientName = row.children[0].textContent.toLowerCase();
+                const date = row.children[5].textContent;
+                const diagnosis = row.children[4].textContent.toLowerCase();
+                
+                const matchesPatient = !patientFilter || patientName.includes(patientFilter);
+                const matchesDate = !dateFilter || date === dateFilter;
+                const matchesDiagnosis = !diagnosisFilter || diagnosis.includes(diagnosisFilter);
+                
+                row.style.display = matchesPatient && matchesDate && matchesDiagnosis ? '' : 'none';
+            });
+        }
+        
+        // Reset filters
+        function resetFilters() {
+            document.getElementById('filter-patient').value = '';
+            document.getElementById('filter-date').value = '';
+            document.getElementById('filter-diagnosis').value = '';
+            
+            const rows = document.querySelectorAll('#records-list tr');
+            rows.forEach(row => row.style.display = '');
+        }
+        
+        // Show status message
+        function showStatus(message, type) {
+            const statusDiv = document.createElement('div');
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+            
+            const container = document.querySelector('.main-content');
+            container.insertBefore(statusDiv, container.firstChild);
+            
+            setTimeout(() => statusDiv.remove(), 3000);
+        }
+
+        // Logout function
+        function logout() {
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html> 
