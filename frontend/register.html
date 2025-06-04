@@ -174,11 +174,12 @@
             color: rgba(255, 255, 255, 0.6);
             font-size: 18px;
             transition: color 0.3s ease;
+            z-index: 1;
         }
 
         input {
             width: 100%;
-            padding: 16px;
+            padding: 16px 16px 16px 48px;
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 12px;
@@ -187,6 +188,7 @@
             font-weight: 400;
             transition: all 0.3s ease;
             backdrop-filter: blur(10px);
+            position: relative;
         }
 
         input::placeholder {

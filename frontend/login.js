@@ -52,8 +52,8 @@ if (loginForm) {
         loginButton.disabled = true;
         emailInput.disabled = true;
         passwordInput.disabled = true;
-        loginSpinner.style.display = 'inline-block';
-        loginText.textContent = 'Logging in...';
+        if (loginSpinner) loginSpinner.style.display = 'inline-block';
+        if (loginText) loginText.textContent = 'Logging in...';
 
         try {
             const email = emailInput.value.trim();
@@ -80,17 +80,23 @@ if (loginForm) {
             SESSION.lastCheck = Date.now();
             SESSION.redirectCount = 0;
             
-            localStorage.setItem("token", data.accessToken);
-            localStorage.setItem("currentUser", JSON.stringify(data.user));
-            
             showStatusMessage(data.msg || 'Login berhasil! Mengalihkan ke dashboard...', 'success');
             
-            // Delay redirect to show success message
-            setTimeout(() => {
-                if (!SESSION.redirecting) {
-                    safeRedirect('dashboard.html');
-                }
-            }, 1500);
+            // Verify token before redirecting
+            try {
+                await makeApiRequest(CONFIG.ENDPOINTS.VERIFY);
+                debugLog('Token verified after login');
+                
+                // Delay redirect to show success message
+                setTimeout(() => {
+                    if (!SESSION.redirecting) {
+                        safeRedirect('dashboard.html');
+                    }
+                }, 1500);
+            } catch (verifyErr) {
+                errorLog('Token verification failed after login', verifyErr);
+                throw new Error('Gagal memverifikasi sesi login. Silakan coba lagi.');
+            }
 
         } catch (err) {
             errorLog('Login error', err);
@@ -113,8 +119,8 @@ if (loginForm) {
                     loginButton.disabled = false;
                     emailInput.disabled = false;
                     passwordInput.disabled = false;
-                    loginSpinner.style.display = 'none';
-                    loginText.textContent = 'Masuk';
+                    if (loginSpinner) loginSpinner.style.display = 'none';
+                    if (loginText) loginText.textContent = 'Masuk';
                 }
             }, 1000);
         }

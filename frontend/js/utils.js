@@ -80,9 +80,7 @@ async function makeApiRequest(endpoint, options = {}) {
             ...CONFIG.HEADERS,
             ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
             ...(options.headers || {})
-        },
-        credentials: 'include',
-        mode: 'cors'
+        }
     };
 
     try {
@@ -132,14 +130,16 @@ async function makeApiRequest(endpoint, options = {}) {
                 isVerifyRequest
             });
             
-            // Handle unauthorized access
-            localStorage.removeItem('token');
-            localStorage.removeItem('currentUser');
-            
-            // Only redirect to login if we're not already there and this isn't a login/verify request
-            if (!isOnLoginPage && !isLoginRequest && !isVerifyRequest) {
-                logDebug('Redirecting to login due to unauthorized access');
-                window.location.replace('/login.html');
+            // Only clear session if it's not a login request
+            if (!isLoginRequest) {
+                localStorage.removeItem('token');
+                localStorage.removeItem('currentUser');
+                
+                // Only redirect to login if we're not already there and this isn't a login/verify request
+                if (!isOnLoginPage && !isLoginRequest && !isVerifyRequest) {
+                    logDebug('Redirecting to login due to unauthorized access');
+                    window.location.replace('/login.html');
+                }
             }
             
             throw new Error(data.message || 'Unauthorized access');
@@ -151,6 +151,14 @@ async function makeApiRequest(endpoint, options = {}) {
                 data
             });
             throw new Error(data.message || `HTTP error! status: ${response.status}`);
+        }
+
+        // If this is a successful login, update the session immediately
+        if (isLoginRequest && data.accessToken) {
+            localStorage.setItem('token', data.accessToken);
+            if (data.user) {
+                localStorage.setItem('currentUser', JSON.stringify(data.user));
+            }
         }
 
         return data;
